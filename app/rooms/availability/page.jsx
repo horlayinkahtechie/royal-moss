@@ -1,8 +1,12 @@
-import React from 'react'
-import Availability from "./availability"
+import React, { Suspense } from "react";
+import Availability from "./availability";
 
 export default function page() {
   return (
-    <div><Availability/></div>
-  )
+    <div>
+      <Suspense>
+        <Availability />
+      </Suspense>
+    </div>
+  );
 }

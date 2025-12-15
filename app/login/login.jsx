@@ -1,32 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import supabase from "../lib/supabase";
-import { 
-  Eye, 
-  EyeOff, 
-  Mail, 
-  Lock, 
-  ArrowRight, 
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  ArrowRight,
   Hotel,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import heroImage from "@/public/images/heroImage.jpg";
 
 export default function LoginPage() {
   const router = useRouter();
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -39,10 +39,11 @@ export default function LoginPage() {
 
     try {
       // Sign in with email and password
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
+      const { data, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
 
       if (signInError) {
         // Handle specific error cases
@@ -59,7 +60,7 @@ export default function LoginPage() {
 
       if (data.user) {
         setSuccess("Login successful! Redirecting...");
-        
+
         // Store remember me preference
         if (formData.rememberMe) {
           localStorage.setItem("rememberMe", "true");
@@ -68,7 +69,7 @@ export default function LoginPage() {
           localStorage.removeItem("rememberMe");
           localStorage.removeItem("userEmail");
         }
-        
+
         // Redirect to dashboard after 1.5 seconds
         setTimeout(() => {
           router.push("/");
@@ -101,10 +102,9 @@ export default function LoginPage() {
       if (error) {
         throw new Error(error.message);
       }
-      
+
       // The user will be redirected to Google for authentication
       // After successful auth, they'll be redirected back to /auth/callback
-      
     } catch (err) {
       setError(err.message || "An error occurred during Google sign in");
       setIsLoading(false);
@@ -112,18 +112,20 @@ export default function LoginPage() {
   };
 
   // Load remembered email on component mount
-  useState(() => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const remembered = localStorage.getItem("rememberMe") === "true";
     const rememberedEmail = localStorage.getItem("userEmail");
-    
+
     if (remembered && rememberedEmail) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         email: rememberedEmail,
         rememberMe: true,
       }));
     }
-  });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br pt-30 from-sky-50 to-purple-50 flex items-center justify-center p-4">
@@ -340,9 +342,9 @@ export default function LoginPage() {
 
             {/* Image Container */}
             <div className="absolute inset-0">
-              <Image 
-                src={heroImage} 
-                alt="Luxury Hotel Room" 
+              <Image
+                src={heroImage}
+                alt="Luxury Hotel Room"
                 fill
                 className="object-cover"
                 priority
@@ -359,8 +361,8 @@ export default function LoginPage() {
                   Experience Luxury Reimagined
                 </h3>
                 <p className="text-white/90">
-                  Access your personalized dashboard to manage bookings, 
-                  view exclusive offers, and customize your stay preferences.
+                  Access your personalized dashboard to manage bookings, view
+                  exclusive offers, and customize your stay preferences.
                 </p>
               </div>
             </div>
@@ -370,11 +372,10 @@ export default function LoginPage() {
         {/* Mobile Image Section */}
         <div className="lg:hidden mt-8 bg-gradient-to-br from-sky-600 to-purple-600 rounded-3xl p-8 text-white">
           <div className="text-center mb-6">
-            <h3 className="text-2xl font-bold mb-3">
-              Welcome to Royal Moss
-            </h3>
+            <h3 className="text-2xl font-bold mb-3">Welcome to Royal Moss</h3>
             <p className="text-white/80">
-              Sign in to access exclusive member benefits and personalized services
+              Sign in to access exclusive member benefits and personalized
+              services
             </p>
           </div>
           <div className="grid grid-cols-3 gap-4 text-center">

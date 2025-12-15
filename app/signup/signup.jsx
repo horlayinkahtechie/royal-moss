@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import supabase from "../lib/supabase";
 import {
   Eye,
@@ -20,7 +19,7 @@ import { FcGoogle } from "react-icons/fc";
 
 export default function SignupPage() {
   const router = useRouter();
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -33,7 +32,7 @@ export default function SignupPage() {
     agreeTerms: false,
     newsletter: true,
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [error, setError] = useState(null);
@@ -43,7 +42,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    
+
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -60,15 +59,21 @@ export default function SignupPage() {
       }
 
       if (existingUsers && existingUsers.length > 0) {
-        const existingEmail = existingUsers.find(u => u.email === formData.email);
-        const existingPhone = existingUsers.find(u => u.phone === formData.phone);
-        
+        const existingEmail = existingUsers.find(
+          (u) => u.email === formData.email
+        );
+        const existingPhone = existingUsers.find(
+          (u) => u.phone === formData.phone
+        );
+
         if (existingEmail) {
-          setError("An account with this email already exists. Please login instead.");
+          setError(
+            "An account with this email already exists. Please login instead."
+          );
           setIsLoading(false);
           return;
         }
-        
+
         if (existingPhone) {
           setError("An account with this phone number already exists.");
           setIsLoading(false);
@@ -77,18 +82,20 @@ export default function SignupPage() {
       }
 
       // 2. Sign up with email and password
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone: formData.phone,
+      const { data: authData, error: signUpError } = await supabase.auth.signUp(
+        {
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              phone: formData.phone,
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+        }
+      );
 
       if (signUpError) {
         throw new Error(signUpError.message);
@@ -105,7 +112,7 @@ export default function SignupPage() {
           subscribed_to_newsletter: formData.newsletter,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          auth_method: 'email_password',
+          auth_method: "email_password",
         });
 
         if (insertError) {
@@ -113,8 +120,10 @@ export default function SignupPage() {
           // Continue anyway since auth succeeded
         }
 
-        setSuccess("Account created successfully! Please check your email to confirm your account.");
-        
+        setSuccess(
+          "Account created successfully! Please check your email to confirm your account."
+        );
+
         // Redirect to dashboard after 3 seconds
         setTimeout(() => {
           router.push("/");
@@ -150,7 +159,6 @@ export default function SignupPage() {
 
       // The user will be redirected to Google for authentication
       // After successful auth, they'll be redirected back to /auth/callback
-      
     } catch (err) {
       setError(err.message || "An error occurred during Google sign up");
       setIsLoading(false);
@@ -162,41 +170,43 @@ export default function SignupPage() {
       setError("Please agree to the Terms & Conditions");
       return false;
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords don't match");
       return false;
     }
-    
+
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters long");
       return false;
     }
-    
+
     // Basic password strength check
     const hasLetter = /[a-zA-Z]/.test(formData.password);
     const hasNumber = /[0-9]/.test(formData.password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
-    
+
     if (!hasLetter || !hasNumber || !hasSpecialChar) {
-      setError("Password must contain letters, numbers, and special characters");
+      setError(
+        "Password must contain letters, numbers, and special characters"
+      );
       return false;
     }
-    
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError("Please enter a valid email address");
       return false;
     }
-    
+
     // Phone validation (basic)
     const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (formData.phone && !phoneRegex.test(formData.phone.replace(/\D/g, ''))) {
+    if (formData.phone && !phoneRegex.test(formData.phone.replace(/\D/g, ""))) {
       setError("Please enter a valid phone number");
       return false;
     }
-    
+
     return true;
   };
 
@@ -449,7 +459,8 @@ export default function SignupPage() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Minimum 8 characters with letters, numbers, and special characters
+                    Minimum 8 characters with letters, numbers, and special
+                    characters
                   </p>
                 </div>
 
@@ -641,7 +652,7 @@ export default function SignupPage() {
             {/* Decorative Elements */}
             <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full backdrop-blur-sm animate-pulse"></div>
             <div className="absolute bottom-10 right-10 w-40 h-40 bg-white/10 rounded-full backdrop-blur-sm"></div>
-            
+
             {/* Content Container */}
             <div className="absolute inset-0 p-12 flex flex-col justify-between">
               {/* Top Content */}
@@ -667,10 +678,6 @@ export default function SignupPage() {
                   ))}
                 </div>
               </div>
-
-             
-
-             
             </div>
           </div>
         </div>

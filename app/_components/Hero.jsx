@@ -43,7 +43,7 @@ const Hero = () => {
           </div>
 
           {/* Main Heading */}
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-lg">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl  font-bold text-white mb-6 leading-tight drop-shadow-lg">
             Experience{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-purple-300">
               Unparalleled Luxury
@@ -52,7 +52,7 @@ const Hero = () => {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xl text-white/90 mb-10 max-w-2xl drop-shadow-md">
+          <p className="lg:text-xl text-l text-white/90 mb-10 max-w-2xl drop-shadow-md">
             Discover a world of elegance and exceptional service at our
             award-winning hotel. Perfect stays crafted just for you.
           </p>

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import supabase from "../lib/supabase"
+import supabase from "../lib/supabase";
 import { Menu, X, LogOut, User } from "lucide-react";
+import Link from "next/link";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,7 +24,9 @@ const Navbar = () => {
   useEffect(() => {
     const getUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         setUser(user);
       } catch (error) {
         console.error("Error fetching user:", error);
@@ -62,14 +65,6 @@ const Navbar = () => {
     router.push("/login");
   };
 
-  const handleBookNow = () => {
-    if (user) {
-      router.push("/bookings");
-    } else {
-      router.push("/login?redirect=/bookings");
-    }
-  };
-
   return (
     <nav className="fixed w-full z-50 py-4 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
@@ -78,11 +73,11 @@ const Navbar = () => {
             <div className="flex justify-between items-center h-16">
               {/* Logo */}
               <div className="shrink-0">
-                <a href="/">
+                <Link href="/">
                   <h1 className="text-2xl font-bold text-sky-600 hover:text-sky-700 transition-colors">
                     Royal Moss
                   </h1>
-                </a>
+                </Link>
               </div>
 
               {/* Desktop Navigation */}
@@ -96,7 +91,7 @@ const Navbar = () => {
                     {item.label}
                   </a>
                 ))}
-                
+
                 {/* User Profile / Auth Section */}
                 <div className="flex items-center space-x-4">
                   {isLoading ? (
@@ -109,7 +104,7 @@ const Navbar = () => {
                           <User className="w-4 h-4 text-sky-600" />
                         </div>
                         <span className="text-sm text-gray-700 font-medium">
-                          {user.email?.split('@')[0]}
+                          {user.email?.split("@")[0]}
                         </span>
                       </div>
                       <button
@@ -128,26 +123,13 @@ const Navbar = () => {
                       Login
                     </button>
                   )}
-                  
-                  <button
-                    onClick={handleBookNow}
-                    className="bg-purple-600 cursor-pointer text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-purple-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
-                  >
-                    Book Now
-                  </button>
                 </div>
               </div>
 
               {/* Mobile menu button */}
               <div className="md:hidden flex items-center space-x-4">
                 {/* Mobile Book Now Button */}
-                <button
-                  onClick={handleBookNow}
-                  className="bg-purple-600 cursor-pointer text-white px-4 py-2 rounded-full font-semibold text-sm hover:bg-purple-700 transition-colors"
-                >
-                  Book Now
-                </button>
-                
+
                 <button
                   onClick={() => setIsOpen(!isOpen)}
                   className="text-gray-700 hover:text-purple-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -159,58 +141,73 @@ const Navbar = () => {
 
             {/* Mobile Navigation */}
             <div
-              className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-                isOpen ? "max-h-96 opacity-100 py-4" : "max-h-0 opacity-0"
+              className={`md:hidden transition-all duration-300 ease-in-out ${
+                isOpen
+                  ? "max-h-[80vh] opacity-100 py-4"
+                  : "max-h-0 opacity-0 overflow-hidden"
               }`}
             >
-              <div className="space-y-3 border-t border-gray-200 pt-4">
-                {navItems.map((item) => (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    className="block px-4 py-2.5 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-300"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {item.label}
-                  </a>
-                ))}
-                
-                {/* Mobile Auth Section */}
-                {isLoading ? (
-                  <div className="px-4 py-2.5">
-                    <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
+              <div className="border-t border-gray-200 pt-4">
+                {/* Scrollable container for navigation items */}
+                <div
+                  className="max-h-[calc(80vh-120px)] overflow-y-auto pr-2"
+                  style={{
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#cbd5e1 transparent",
+                  }}
+                >
+                  <div className="space-y-3">
+                    {navItems.map((item) => (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        className="block px-4 py-2.5 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-300"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        {item.label}
+                      </a>
+                    ))}
                   </div>
-                ) : user ? (
-                  <>
-                    <div className="px-4 py-3 flex items-center space-x-3 bg-gray-50 rounded-lg">
-                      <div className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-sky-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {user.email?.split('@')[0]}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {user.email}
-                        </p>
-                      </div>
+                </div>
+
+                {/* Fixed Auth Section at bottom */}
+                <div className="pt-4 mt-4 border-t border-gray-200">
+                  {isLoading ? (
+                    <div className="px-4 py-2.5">
+                      <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
                     </div>
+                  ) : user ? (
+                    <>
+                      <div className="px-4 py-3 flex items-center space-x-3 bg-gray-50 rounded-lg mb-3">
+                        <div className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-sky-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {user.email?.split("@")[0]}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center justify-center px-4 py-2.5 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-300"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sign Out
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={handleSignOut}
-                      className="w-full flex items-center justify-center px-4 py-2.5 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-300"
+                      onClick={handleLogin}
+                      className="w-full px-4 py-2.5 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-300 text-left"
                     >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
+                      Login / Sign Up
                     </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={handleLogin}
-                    className="w-full px-4 py-2.5 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-300 text-left"
-                  >
-                    Login / Sign Up
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

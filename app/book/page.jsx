@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import Book from "./book";
 
 export default function page() {
   return (
     <div>
-      <Book />
+      <Suspense>
+        <Book />
+      </Suspense>
     </div>
   );
 }

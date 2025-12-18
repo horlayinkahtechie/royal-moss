@@ -8,7 +8,7 @@ const nextConfig = {
       "example.com",
       "mlkyvftadbtjeiuhksnq.supabase.co",
       "images.unsplash.com",
-      "images.unsplash.com"
+      "media.istockphoto.com",
     ],
   },
 };

@@ -91,39 +91,6 @@ const Testimonials = () => {
             </div>
           ))}
         </div>
-
-        {/* Overall Rating */}
-        <div className="mt-20 bg-sky-600 rounded-3xl p-8 text-white">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
-            <div className="text-center lg:text-left">
-              <div className="text-6xl font-bold">4.9</div>
-              <div className="flex justify-center lg:justify-start mt-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-6 h-6 fill-white" />
-                ))}
-              </div>
-              <div className="mt-2">Overall Rating</div>
-            </div>
-
-            <div className="lg:col-span-2">
-              <h3 className="text-2xl font-bold mb-6">
-                Rated Excellent by Our Guests
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {[
-                  { label: "Cleanliness", score: "4.9" },
-                  { label: "Service", score: "4.95" },
-                  { label: "Location", score: "4.8" },
-                ].map((item) => (
-                  <div key={item.label} className="bg-white/10 p-4 rounded-xl">
-                    <div className="text-3xl font-bold">{item.score}</div>
-                    <div className="text-sm opacity-90">{item.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

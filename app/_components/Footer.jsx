@@ -8,29 +8,31 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
+import Link from "next/link";
 
 const Footer = () => {
   const footerLinks = {
     "Quick Links": [
-      "Home",
-      "Rooms & Suites",
-      "Amenities",
-      "Special Offers",
-      "Gallery",
+      { label: "Home", href: "/" },
+      { label: "Rooms & Suites", href: "/rooms" },
+      { label: "Amenities", href: "/gallery" },
+      // { label: "Special Offers", href: "/offers" },
+      { label: "Gallery", href: "/gallery" },
+      { label: "Your Bookings", href: "/bookings" },
     ],
     Services: [
-      "Concierge",
-      "Spa & Wellness",
-      "Fine Dining",
-      "Meeting Rooms",
-      "Transport",
+      { label: "Concierge", href: "/services/concierge" },
+      { label: "Spa & Wellness", href: "/services/spa" },
+      { label: "Fine Dining", href: "/services/dining" },
+      { label: "Meeting Rooms", href: "/services/meetings" },
+      { label: "Transport", href: "/services/transport" },
     ],
     Support: [
-      "FAQ",
-      "Privacy Policy",
-      "Terms & Conditions",
-      "Contact Us",
-      "Careers",
+      { label: "FAQ", href: "/faq" },
+      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms & Conditions", href: "/terms" },
+      { label: "Contact Us", href: "/contact" },
+      { label: "Careers", href: "/careers" },
     ],
   };
 
@@ -43,8 +45,8 @@ const Footer = () => {
           <div>
             <h2 className="text-3xl font-bold text-white mb-4">Royal Moss</h2>
             <p className="text-gray-400 mb-6">
-              Experience luxury redefined at our hotel. Where
-              exceptional service meets unforgettable moments.
+              Experience luxury redefined at our hotel. Where exceptional
+              service meets unforgettable moments.
             </p>
 
             {/* Social Media */}
@@ -67,13 +69,13 @@ const Footer = () => {
               <h3 className="text-lg font-bold mb-6 text-white">{category}</h3>
               <ul className="space-y-3">
                 {links.map((link) => (
-                  <li key={link}>
-                    <a
-                      href="#"
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
                       className="text-gray-400 hover:text-white transition-colors duration-300 hover:translate-x-2 inline-block"
                     >
-                      {link}
-                    </a>
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>

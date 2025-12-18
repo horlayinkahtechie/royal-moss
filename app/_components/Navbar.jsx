@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import supabase from "../lib/supabase";
 import { Menu, X, LogOut, User } from "lucide-react";
 import Link from "next/link";
@@ -11,6 +11,7 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   const navItems = [
     { label: "Home", href: "/" },
@@ -20,6 +21,14 @@ const Navbar = () => {
     { label: "Contact", href: "/contact" },
     { label: "Bookings", href: "/bookings" },
   ];
+
+  // Check if a link is active
+  const isActive = (href) => {
+    if (href === "/") {
+      return pathname === "/";
+    }
+    return pathname.startsWith(href);
+  };
 
   useEffect(() => {
     const getUser = async () => {
@@ -81,15 +90,31 @@ const Navbar = () => {
               </div>
 
               {/* Desktop Navigation */}
-              <div className="hidden md:flex items-center space-x-8">
+              <div className="hidden md:flex items-center space-x-4">
                 {navItems.map((item) => (
-                  <a
+                  <Link
                     key={item.label}
                     href={item.href}
-                    className="text-gray-700 hover:text-purple-600 transition-colors duration-300 font-medium text-sm"
+                    className={`relative px-3 py-2 font-medium text-sm transition-all duration-300 ${
+                      isActive(item.href)
+                        ? "text-white bg-purple-600 rounded-full"
+                        : "text-gray-700 hover:text-purple-600"
+                    }`}
                   >
                     {item.label}
-                  </a>
+
+                    {/* Centered underline for active link */}
+                    {isActive(item.href) && (
+                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1/3">
+                        <div className="h-1 bg-white rounded-full"></div>
+                      </div>
+                    )}
+
+                    {/* Hover underline effect */}
+                    {!isActive(item.href) && (
+                      <div className="absolute inset-x-0 -bottom-1 h-0.5 bg-transparent group-hover:bg-purple-600 transition-all duration-300"></div>
+                    )}
+                  </Link>
                 ))}
 
                 {/* User Profile / Auth Section */}
@@ -118,9 +143,9 @@ const Navbar = () => {
                   ) : (
                     <button
                       onClick={handleLogin}
-                      className="text-gray-700 cursor-pointer hover:text-purple-600 transition-colors duration-300 font-medium text-sm"
+                      className="flex items-center cursor-pointer px-6 py-2.5 text-white hover:bg-purple-500 bg-purple-600 rounded-full font-medium transition-all duration-300"
                     >
-                      Login
+                      Login/Signup
                     </button>
                   )}
                 </div>
@@ -128,8 +153,6 @@ const Navbar = () => {
 
               {/* Mobile menu button */}
               <div className="md:hidden flex items-center space-x-4">
-                {/* Mobile Book Now Button */}
-
                 <button
                   onClick={() => setIsOpen(!isOpen)}
                   className="text-gray-700 hover:text-purple-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -158,14 +181,23 @@ const Navbar = () => {
                 >
                   <div className="space-y-3">
                     {navItems.map((item) => (
-                      <a
+                      <Link
                         key={item.label}
                         href={item.href}
-                        className="block px-4 py-2.5 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-300"
+                        className={`block px-4 py-2.5 rounded-lg transition-all duration-300 ${
+                          isActive(item.href)
+                            ? "text-white bg-purple-600"
+                            : "text-gray-700 hover:text-purple-600 hover:bg-purple-50"
+                        }`}
                         onClick={() => setIsOpen(false)}
                       >
-                        {item.label}
-                      </a>
+                        <div className="flex items-center justify-between">
+                          <span>{item.label}</span>
+                          {isActive(item.href) && (
+                            <div className="h-1 w-6 bg-white rounded-full"></div>
+                          )}
+                        </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -204,7 +236,7 @@ const Navbar = () => {
                       onClick={handleLogin}
                       className="w-full px-4 py-2.5 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-300 text-left"
                     >
-                      Login / Sign Up
+                      Login/Signup
                     </button>
                   )}
                 </div>

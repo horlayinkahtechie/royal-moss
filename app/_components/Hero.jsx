@@ -16,15 +16,15 @@ const Hero = () => {
             className="object-cover"
             priority
             sizes="100vw"
-            quality={85}
+            quality={75}
           />
         </div>
 
         {/* Dark Overlay for better text contrast */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/30 to-black/20"></div>
+        <div className="absolute inset-0 bg-linear-to-br from-black/40 via-black/30 to-black/20"></div>
 
         {/* Subtle Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-purple-900/10 via-sky-900/5 to-transparent"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-purple-900/10 via-sky-900/5 to-transparent"></div>
       </div>
 
       {/* Animated Blob Elements (now with lower opacity for better contrast) */}
@@ -45,7 +45,7 @@ const Hero = () => {
           {/* Main Heading */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl  font-bold text-white mb-6 leading-tight drop-shadow-lg">
             Experience{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-purple-300">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-sky-300 to-purple-300">
               Unparalleled Luxury
             </span>{" "}
             & Comfort

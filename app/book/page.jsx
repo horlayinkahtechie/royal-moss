@@ -1,9 +1,9 @@
-import Bookings from "./bookings";
+import Book from "./book";
 
 export default function page() {
   return (
     <div>
-      <Bookings />
+      <Book />
     </div>
   );
 }

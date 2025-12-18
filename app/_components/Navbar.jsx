@@ -18,6 +18,7 @@ const Navbar = () => {
     { label: "Rooms & Suites", href: "/rooms" },
     { label: "About us", href: "/aboutus" },
     { label: "Gallery", href: "/gallery" },
+    { label: "Services", href: "/services" },
     { label: "Contact", href: "/contact" },
     { label: "Bookings", href: "/bookings" },
   ];

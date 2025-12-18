@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import supabase from '@/lib/supabase';
+import supabase from "../lib/supabase";
 import { CheckCircle, Home, FileText } from 'lucide-react';
 import Link from 'next/link';
 

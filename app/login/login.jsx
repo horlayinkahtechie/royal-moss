@@ -128,7 +128,7 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br pt-30 from-sky-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br pt-30 from-sky-50 to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-6xl w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Left Column - Form */}
@@ -335,7 +335,7 @@ export default function LoginPage() {
           </div>
 
           {/* Right Column - Image */}
-          <div className="hidden lg:block relative bg-gradient-to-br from-sky-600 to-purple-600 overflow-hidden">
+          <div className="hidden lg:block relative bg-linear-to-br from-sky-600 to-purple-600 overflow-hidden">
             {/* Decorative Elements */}
             <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full backdrop-blur-sm z-10"></div>
             <div className="absolute bottom-10 right-10 w-40 h-40 bg-white/10 rounded-full backdrop-blur-sm z-10"></div>
@@ -351,7 +351,7 @@ export default function LoginPage() {
                 sizes="(max-width: 768px) 100vw, 50vw"
               />
               {/* Overlay for better text contrast */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+              <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"></div>
             </div>
 
             {/* Content Overlay */}
@@ -370,7 +370,7 @@ export default function LoginPage() {
         </div>
 
         {/* Mobile Image Section */}
-        <div className="lg:hidden mt-8 bg-gradient-to-br from-sky-600 to-purple-600 rounded-3xl p-8 text-white">
+        <div className="lg:hidden mt-8 bg-linear-to-br from-sky-600 to-purple-600 rounded-3xl p-8 text-white">
           <div className="text-center mb-6">
             <h3 className="text-2xl font-bold mb-3">Welcome to Royal Moss</h3>
             <p className="text-white/80">

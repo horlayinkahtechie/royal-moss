@@ -220,7 +220,7 @@ export default function SignupPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br pt-30 from-sky-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br pt-30 from-sky-50 to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-6xl w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Left Column - Form */}
@@ -648,7 +648,7 @@ export default function SignupPage() {
           </div>
 
           {/* Right Column - Benefits & Image */}
-          <div className="hidden lg:block relative bg-gradient-to-br from-sky-600 to-purple-600">
+          <div className="hidden lg:block relative bg-linear-to-br from-sky-600 to-purple-600">
             {/* Decorative Elements */}
             <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full backdrop-blur-sm animate-pulse"></div>
             <div className="absolute bottom-10 right-10 w-40 h-40 bg-white/10 rounded-full backdrop-blur-sm"></div>

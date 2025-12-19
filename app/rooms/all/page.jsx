@@ -1,10 +1,10 @@
 import React from "react";
-import Dining from "./dining";
+import All from "./all";
 
 export default function page() {
   return (
     <div>
-      <Dining />
+      <All />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import supabase from "../lib/supabase";
@@ -14,12 +14,17 @@ import {
   Wifi,
   Coffee,
   Wind,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const FeaturedRooms = () => {
   const [rooms, setRooms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const scrollContainerRef = useRef(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(true);
 
   // Shuffle array function - Fisher-Yates algorithm
   const shuffleArray = (array) => {
@@ -128,9 +133,45 @@ const FeaturedRooms = () => {
     }));
   };
 
+  // Check scroll position
+  const checkScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } =
+        scrollContainerRef.current;
+      setShowLeftScroll(scrollLeft > 10);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  // Scroll handlers
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({
+        left: -300,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({
+        left: 300,
+        behavior: "smooth",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchRandomRooms();
   }, []);
+
+  useEffect(() => {
+    // Check scroll position on mount and after data loads
+    if (!isLoading && scrollContainerRef.current) {
+      setTimeout(checkScrollPosition, 100);
+    }
+  }, [isLoading]);
 
   // Get room image or fallback
   const getRoomImage = (images) => {
@@ -168,7 +209,22 @@ const FeaturedRooms = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {/* Mobile loading skeleton */}
+          <div className="md:hidden">
+            <div className="flex space-x-4 overflow-hidden">
+              {[...Array(4)].map((_, index) => (
+                <div key={index} className="shrink-0 w-72 animate-pulse">
+                  <div className="bg-gray-200 h-56 rounded-2xl mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-3"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop loading skeleton */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-8">
             {[...Array(8)].map((_, index) => (
               <div key={index} className="animate-pulse">
                 <div className="bg-gray-200 h-64 rounded-2xl mb-4"></div>
@@ -208,7 +264,7 @@ const FeaturedRooms = () => {
   }
 
   return (
-    <section className="py-20 bg-linear-to-b from-white to-gray-50">
+    <section className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
@@ -232,138 +288,185 @@ const FeaturedRooms = () => {
           </Link>
         </div>
 
-        {/* Rooms Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {rooms.map((room) => {
-            const mainImage = getRoomImage(room.images);
+        {/* Scroll navigation for mobile */}
+        <div className="relative">
+          {/* Left scroll button (mobile only) */}
+          {showLeftScroll && (
+            <button
+              onClick={scrollLeft}
+              className="md:hidden absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 z-20 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200 hover:bg-gray-50 transition-colors"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-700" />
+            </button>
+          )}
 
-            return (
-              <div
-                key={room.id}
-                className="group bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:border-sky-300 transition-all duration-300 hover:shadow-xl"
-              >
-                {/* Image Container */}
-                <div className="relative h-48 overflow-hidden">
-                  {mainImage ? (
-                    <Image
-                      src={mainImage}
-                      alt={room.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-linear-to-br from-sky-400 to-purple-500 flex items-center justify-center">
-                      <div className="text-white text-center">
-                        <div className="text-2xl font-bold opacity-20">
-                          Royal Moss
-                        </div>
-                        <div className="text-sm opacity-40">Luxury Room</div>
-                      </div>
-                    </div>
-                  )}
+          {/* Right scroll button (mobile only) */}
+          {showRightScroll && (
+            <button
+              onClick={scrollRight}
+              className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 z-20 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200 hover:bg-gray-50 transition-colors"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-700" />
+            </button>
+          )}
 
-                  {/* Rating Badge */}
-                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
-                    <div className="flex items-center">
-                      <Star className="w-4 h-4 text-amber-500 fill-current mr-1" />
-                      <span className="font-bold text-gray-900">
-                        {room.rating}
-                      </span>
-                    </div>
-                  </div>
+          {/* Rooms Container */}
+          <div
+            ref={scrollContainerRef}
+            onScroll={checkScrollPosition}
+            className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-visible scrollbar-hide pb-4"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {/* Add this for custom scrollbar styling if needed */}
+            <style jsx>{`
+              .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+              }
+            `}</style>
 
-                  {/* Discount Badge */}
-                  {room.discountedPrice && (
-                    <div className="absolute top-3 left-3 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
-                      SAVE ${room.price - room.discountedPrice}
-                    </div>
-                  )}
-                </div>
+            {rooms.map((room) => {
+              const mainImage = getRoomImage(room.images);
 
-                {/* Content */}
-                <div className="p-5">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-sky-600 transition-colors">
-                    {room.title}
-                  </h3>
-
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {room.description}
-                  </p>
-
-                  {/* Room Details */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Users className="w-4 h-4 mr-1 text-sky-500" />
-                        {room.guests}
-                      </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Maximize2 className="w-4 h-4 mr-1 text-purple-500" />
-                        {room.size}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Amenities */}
-                  {room.amenities.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex flex-wrap gap-2">
-                        {room.amenities.map((amenity, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs"
-                            title={amenity}
-                          >
-                            {renderAmenityIcon(amenity)}
-                            <span className="ml-1 truncate max-w-20">
-                              {amenity}
-                            </span>
+              return (
+                <div
+                  key={room.id}
+                  className="shrink-0 w-72 md:w-auto md:shrink md:min-w-0 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:border-sky-300 transition-all duration-300 hover:shadow-xl"
+                >
+                  {/* Image Container */}
+                  <div className="relative h-48 overflow-hidden">
+                    {mainImage ? (
+                      <Image
+                        src={mainImage}
+                        alt={room.title}
+                        fill
+                        className="object-cover hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 768px) 288px, (max-width: 1024px) 200px, 300px"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-sky-400 flex items-center justify-center">
+                        <div className="text-white text-center">
+                          <div className="text-2xl font-bold opacity-20">
+                            Royal Moss
                           </div>
-                        ))}
+                          <div className="text-sm opacity-40">Luxury Room</div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Price & Action */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div>
+                    {/* Rating Badge */}
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
                       <div className="flex items-center">
-                        {room.discountedPrice ? (
-                          <>
-                            <span className="text-xl font-bold text-gray-900">
-                              ${room.discountedPrice}
-                            </span>
-                            <span className="ml-2 text-sm text-gray-500 line-through">
-                              ${room.price}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-xl font-bold text-gray-900">
-                            ${room.price}
-                          </span>
-                        )}
-                        <span className="ml-1 text-sm text-gray-600">
-                          /night
+                        <Star className="w-4 h-4 text-amber-500 fill-current mr-1" />
+                        <span className="font-bold text-gray-900">
+                          {room.rating}
                         </span>
                       </div>
                     </div>
 
-                    <Link
-                      href={`/book?roomId=${room.id}&type=${room.title
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")}&price=${
-                        room.discountedPrice || room.price
-                      }`}
-                      className="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold hover:bg-sky-700 transition-colors transform hover:-translate-y-0.5"
-                    >
-                      Book Now
-                    </Link>
+                    {/* Discount Badge */}
+                    {room.discountedPrice && (
+                      <div className="absolute top-3 left-3 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        SAVE ₦{room.price - room.discountedPrice}K
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-5">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 hover:text-sky-600 transition-colors">
+                      {room.title}
+                    </h3>
+
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                      {room.description}
+                    </p>
+
+                    {/* Room Details */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Users className="w-4 h-4 mr-1 text-sky-500" />
+                          {room.guests}
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Maximize2 className="w-4 h-4 mr-1 text-purple-500" />
+                          {room.size}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Amenities */}
+                    {room.amenities.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex flex-wrap gap-2">
+                          {room.amenities.map((amenity, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs"
+                              title={amenity}
+                            >
+                              {renderAmenityIcon(amenity)}
+                              <span className="ml-1 truncate max-w-20">
+                                {amenity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Price & Action */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <div>
+                        <div className="flex items-center">
+                          {room.discountedPrice ? (
+                            <>
+                              <span className="text-xl font-bold text-gray-900">
+                                ₦{room.discountedPrice}K
+                              </span>
+                              <span className="ml-2 text-sm text-gray-500 line-through">
+                                ₦{room.price}K
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-xl font-bold text-gray-900">
+                              ₦{room.price}K
+                            </span>
+                          )}
+                          <span className="ml-1 text-sm text-gray-600">
+                            /night
+                          </span>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/book?roomId=${room.id}&type=${room.title
+                          .toLowerCase()
+                          .replace(/\s+/g, "-")}&price=${
+                          room.discountedPrice || room.price
+                        }`}
+                        className="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold hover:bg-sky-700 transition-colors transform hover:-translate-y-0.5"
+                      >
+                        Book Now
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Scroll indicators for mobile */}
+        <div className="md:hidden mt-6 text-center">
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+            <div className="text-sm text-gray-500">
+              Swipe to explore more rooms
+            </div>
+          </div>
         </div>
       </div>
     </section>

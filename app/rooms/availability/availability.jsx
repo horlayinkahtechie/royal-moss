@@ -36,6 +36,10 @@ export default function Availability() {
   const router = useRouter();
 
   const roomType = searchParams.get("type") || "";
+  const roomImage =
+    searchParams.get("roomImage") ||
+    searchParams.get("image") ||
+    "Room is empty";
   const [rooms, setRooms] = useState([]);
   const [filteredRooms, setFilteredRooms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -268,19 +272,24 @@ export default function Availability() {
     if (!isAvailable) return;
 
     if (roomData) {
-      // Navigate to booking page with room data
+      const roomImage = getRoomImage(roomData.images);
+
       router.push(
         `/book?roomId=${roomId}&type=${roomType}&price=${
           roomData.price
+        }&roomImage=${
+          roomImage ? encodeURIComponent(roomImage) : "No room image"
         }&title=${encodeURIComponent(roomData.title)}`
       );
     } else {
-      // Find the room in the filtered rooms
       const room = filteredRooms.find((r) => r.id === roomId);
       if (room) {
+        const roomImage = getRoomImage(room.images);
         router.push(
           `/book?roomId=${roomId}&type=${roomType}&price=${
             room.price
+          }&roomImage=${
+            roomImage ? encodeURIComponent(roomImage) : "No room image"
           }&title=${encodeURIComponent(room.title)}`
         );
       }
@@ -549,7 +558,7 @@ export default function Availability() {
                             {/* Discount Badge */}
                             {room.discountedPrice && (
                               <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
-                                SAVE ${room.price - room.discountedPrice}
+                                SAVE ₦{room.price - room.discountedPrice}K
                               </div>
                             )}
                           </div>
@@ -617,10 +626,10 @@ export default function Availability() {
                                 {room.discountedPrice ? (
                                   <>
                                     <span className="text-2xl font-bold text-gray-900">
-                                      ${room.discountedPrice}
+                                      ₦{room.discountedPrice}K
                                     </span>
                                     <span className="ml-2 text-lg text-gray-500 line-through">
-                                      ${room.price}
+                                      ₦{room.price}K
                                     </span>
                                     <span className="ml-2 text-sm font-bold text-emerald-600">
                                       (
@@ -634,7 +643,7 @@ export default function Availability() {
                                   </>
                                 ) : (
                                   <span className="text-2xl font-bold text-gray-900">
-                                    ${room.price}
+                                    ₦{room.price}K
                                   </span>
                                 )}
                                 <span className="ml-2 text-sm text-gray-600">
@@ -894,10 +903,10 @@ export default function Availability() {
                           {selectedRoom.discountedPrice ? (
                             <>
                               <span className="text-3xl font-bold text-gray-900">
-                                ${selectedRoom.discountedPrice}
+                                ₦{selectedRoom.discountedPrice}K
                               </span>
                               <span className="ml-2 text-lg text-gray-500 line-through">
-                                ${selectedRoom.price}
+                                ₦{selectedRoom.price}K
                               </span>
                               <span className="ml-2 text-sm font-bold text-emerald-600">
                                 (
@@ -912,7 +921,7 @@ export default function Availability() {
                             </>
                           ) : (
                             <span className="text-3xl font-bold text-gray-900">
-                              ${selectedRoom.price}
+                              ₦{selectedRoom.price}K
                             </span>
                           )}
                           <span className="ml-2 text-gray-600">per night</span>

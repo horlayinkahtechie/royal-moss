@@ -13,17 +13,21 @@ import {
   CheckCircle,
   XCircle,
   Clock as ClockIcon,
-  Filter,
   Search,
-  Download,
   Printer,
   Eye,
   ArrowRight,
   Building,
   RefreshCw,
   AlertCircle,
+  X,
+  User,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
-import { format, parseISO, isAfter, isBefore } from "date-fns";
+import { format, parseISO, isAfter, isBefore, isValid } from "date-fns";
 
 const BookingsPage = () => {
   const [user, setUser] = useState(null);
@@ -32,7 +36,6 @@ const BookingsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
 
   // Filter states
@@ -41,6 +44,10 @@ const BookingsPage = () => {
     search: "",
     dateRange: "all",
   });
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
 
   const bookingStatuses = [
     { value: "all", label: "All Bookings", color: "gray" },
@@ -75,6 +82,7 @@ const BookingsPage = () => {
       } catch (error) {
         console.error("Error fetching user:", error);
         setError("Please login to view your bookings");
+        setIsLoading(false);
       }
     };
 
@@ -84,6 +92,11 @@ const BookingsPage = () => {
   useEffect(() => {
     applyFilters();
   }, [bookings, filters]);
+
+  useEffect(() => {
+    // Reset to first page when filters change
+    setCurrentPage(1);
+  }, [filters]);
 
   const fetchBookings = async (userId) => {
     setIsLoading(true);
@@ -100,51 +113,105 @@ const BookingsPage = () => {
 
       if (!bookingsData || bookingsData.length === 0) {
         setBookings([]);
+        setIsLoading(false);
         return;
       }
 
-      // Format bookings with room details
-      const formattedBookings = bookingsData.map((booking) => {
-        const roomData = booking.rooms || {};
-        const checkIn = parseISO(booking.check_in_date);
-        const checkOut = parseISO(booking.check_out_date);
-        const today = new Date();
+      const formattedBookings = await Promise.all(
+        bookingsData.map(async (booking) => {
+          try {
+            const checkIn = parseISO(booking.check_in_date);
+            const checkOut = parseISO(booking.check_out_date);
+            const today = new Date();
 
-        let status = booking.booking_status;
+            if (!isValid(checkIn) || !isValid(checkOut)) {
+              console.warn("Invalid dates for booking:", booking.id);
+            }
 
-        // Determine status based on dates
-        if (status === "confirmed") {
-          if (isBefore(today, checkIn)) {
-            status = "upcoming";
-          } else if (isAfter(today, checkOut)) {
-            status = "completed";
-          } else if (today >= checkIn && today <= checkOut) {
-            status = "active";
+            let roomImage = null;
+            if (booking.room_image) {
+              try {
+                if (Array.isArray(booking.room_image)) {
+                  roomImage = booking.room_image[0] || null;
+                } else if (typeof booking.room_image === "string") {
+                  if (booking.room_image.trim().startsWith("[")) {
+                    const parsed = JSON.parse(booking.room_image);
+                    if (Array.isArray(parsed)) {
+                      roomImage = parsed[0] || null;
+                    } else if (typeof parsed === "string") {
+                      roomImage = parsed;
+                    }
+                  } else {
+                    roomImage = booking.room_image;
+                  }
+                }
+              } catch (e) {
+                console.warn("Error parsing room image:", e);
+                roomImage = null;
+              }
+            }
+
+            let displayStatus = booking.booking_status || "pending";
+
+            if (displayStatus === "confirmed") {
+              if (isBefore(today, checkIn)) {
+                displayStatus = "upcoming";
+              } else if (isAfter(today, checkOut)) {
+                displayStatus = "completed";
+              } else if (today >= checkIn && today <= checkOut) {
+                displayStatus = "active";
+              }
+            }
+
+            const nights = Math.ceil(
+              (checkOut - checkIn) / (1000 * 60 * 60 * 24)
+            );
+
+            return {
+              id: booking.id,
+              booking_id:
+                booking.booking_id || `BOOK-${booking.id.slice(0, 8)}`,
+              booking_reference:
+                booking.booking_reference ||
+                booking.booking_id ||
+                `BOOK-${booking.id.slice(0, 8)}`,
+              room_title: booking.room_title || "Room",
+              room_category: booking.room_category || "Standard Room",
+              room_number: booking.room_number || "Not assigned",
+              room_image: roomImage,
+              check_in_date: booking.check_in_date,
+              check_out_date: booking.check_out_date,
+              no_of_guests: booking.no_of_guests || 1,
+              total_amount: booking.total_amount || 0,
+              currency: booking.currency || "USD",
+              payment_status: booking.payment_status || "pending",
+              payment_method: booking.payment_method || "paystack",
+              booking_status: booking.booking_status || "pending",
+              guest_name: booking.guest_name || "Guest",
+              guest_email: booking.guest_email || "",
+              guest_phone: booking.guest_phone || "",
+              special_requests: booking.special_requests || "",
+              user_id: booking.user_id,
+              payment_reference: booking.payment_reference,
+              created_at: booking.created_at,
+              displayStatus,
+              formattedCheckIn: format(checkIn, "MMM dd, yyyy"),
+              formattedCheckOut: format(checkOut, "MMM dd, yyyy"),
+              formattedDates: `${format(checkIn, "MMM dd")} - ${format(
+                checkOut,
+                "MMM dd, yyyy"
+              )}`,
+              nights: nights > 0 ? nights : 1,
+            };
+          } catch (error) {
+            console.error("Error formatting booking:", error);
+            return null;
           }
-        }
+        })
+      );
 
-        return {
-          ...booking,
-          roomTitle: roomData.room_category,
-
-          roomImage: roomData.room_image
-            ? Array.isArray(roomData.room_image)
-              ? roomData.room_image[0]
-              : JSON.parse(roomData.room_image)[0]
-            : null,
-          roomDescription: roomData.room_description || "",
-          status,
-          formattedCheckIn: format(checkIn, "MMM dd, yyyy"),
-          formattedCheckOut: format(checkOut, "MMM dd, yyyy"),
-          formattedDates: `${format(checkIn, "MMM dd")} - ${format(
-            checkOut,
-            "MMM dd, yyyy"
-          )}`,
-          nights: Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)),
-        };
-      });
-
-      setBookings(formattedBookings);
+      const validBookings = formattedBookings.filter((b) => b !== null);
+      setBookings(validBookings);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       setError("Failed to load your bookings. Please try again.");
@@ -156,47 +223,114 @@ const BookingsPage = () => {
   const applyFilters = () => {
     let filtered = [...bookings];
 
-    // Filter by status
     if (filters.status !== "all") {
       filtered = filtered.filter(
         (booking) => booking.booking_status === filters.status
       );
     }
 
-    // Filter by search
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(
         (booking) =>
-          booking.roomTitle.toLowerCase().includes(searchLower) ||
-          booking.booking_reference.toLowerCase().includes(searchLower) ||
-          booking.guest_name.toLowerCase().includes(searchLower)
+          (booking.room_title || "").toLowerCase().includes(searchLower) ||
+          (booking.booking_reference || "")
+            .toLowerCase()
+            .includes(searchLower) ||
+          (booking.guest_name || "").toLowerCase().includes(searchLower)
       );
     }
 
-    // Filter by date range
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     if (filters.dateRange === "upcoming") {
       filtered = filtered.filter((booking) => {
-        const checkIn = parseISO(booking.check_in_date);
-        return checkIn > today;
+        try {
+          const checkIn = parseISO(booking.check_in_date);
+          return checkIn > today;
+        } catch (e) {
+          return false;
+        }
       });
     } else if (filters.dateRange === "past") {
       filtered = filtered.filter((booking) => {
-        const checkOut = parseISO(booking.check_out_date);
-        return checkOut < today;
+        try {
+          const checkOut = parseISO(booking.check_out_date);
+          return checkOut < today;
+        } catch (e) {
+          console.log(e);
+          return false;
+        }
       });
     } else if (filters.dateRange === "current") {
       filtered = filtered.filter((booking) => {
-        const checkIn = parseISO(booking.check_in_date);
-        const checkOut = parseISO(booking.check_out_date);
-        return checkIn <= today && checkOut >= today;
+        try {
+          const checkIn = parseISO(booking.check_in_date);
+          const checkOut = parseISO(booking.check_out_date);
+          return checkIn <= today && checkOut >= today;
+        } catch (e) {
+          console.log(e);
+          return false;
+        }
       });
     }
 
     setFilteredBookings(filtered);
+  };
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+
+  // Get current page items
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentBookings = filteredBookings.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("...");
+        pageNumbers.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pageNumbers.push(1);
+        pageNumbers.push("...");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        pageNumbers.push(1);
+        pageNumbers.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push("...");
+        pageNumbers.push(totalPages);
+      }
+    }
+
+    return pageNumbers;
+  };
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    setCurrentPage(pageNumber);
+    // Scroll to top of bookings list
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleFilterChange = (filterName, value) => {
@@ -207,9 +341,12 @@ const BookingsPage = () => {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
+    const statusLower = status.toLowerCase();
+
+    switch (statusLower) {
       case "confirmed":
       case "active":
+      case "upcoming":
         return "emerald";
       case "pending":
         return "amber";
@@ -226,9 +363,12 @@ const BookingsPage = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
+    const statusLower = status.toLowerCase();
+
+    switch (statusLower) {
       case "confirmed":
       case "active":
+      case "upcoming":
         return <CheckCircle className="w-4 h-4" />;
       case "pending":
         return <ClockIcon className="w-4 h-4" />;
@@ -249,37 +389,123 @@ const BookingsPage = () => {
   };
 
   const handlePrintInvoice = (booking) => {
-    // Implement print functionality
-    window.print();
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice - ${booking.booking_reference}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            .invoice-details { margin: 20px 0; }
+            .invoice-details p { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          <h1>Royal Moss Hotel - Invoice</h1>
+          <div class="invoice-details">
+            <p><strong>Booking Reference:</strong> ${
+              booking.booking_reference
+            }</p>
+            <p><strong>Guest Name:</strong> ${booking.guest_name}</p>
+            <p><strong>Room:</strong> ${booking.room_title}</p>
+            <p><strong>Dates:</strong> ${booking.formattedDates}</p>
+            <p><strong>Nights:</strong> ${booking.nights}</p>
+            <p><strong>Total Amount:</strong> ${booking.currency} ${
+      booking.total_amount
+    }</p>
+            <p><strong>Payment Status:</strong> ${booking.payment_status}</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const handleRefresh = () => {
     if (user) {
       fetchBookings(user.id);
+    } else {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          setUser(user);
+          fetchBookings(user.id);
+        } else {
+          router.push("/login");
+        }
+      });
     }
   };
 
   const getBookingStats = () => {
     const stats = {
       total: bookings.length,
-      upcoming: bookings.filter((b) => parseISO(b.check_in_date) > new Date())
-        .length,
-      current: bookings.filter((b) => {
-        const checkIn = parseISO(b.check_in_date);
-        const checkOut = parseISO(b.check_out_date);
-        const today = new Date();
-        return checkIn <= today && checkOut >= today;
+      upcoming: bookings.filter((b) => {
+        try {
+          return parseISO(b.check_in_date) > new Date();
+        } catch (e) {
+          console.log(e);
+          return false;
+        }
       }).length,
-      past: bookings.filter((b) => parseISO(b.check_out_date) < new Date())
-        .length,
+      current: bookings.filter((b) => {
+        try {
+          const checkIn = parseISO(b.check_in_date);
+          const checkOut = parseISO(b.check_out_date);
+          const today = new Date();
+          return checkIn <= today && checkOut >= today;
+        } catch (e) {
+          console.log(e);
+          return false;
+        }
+      }).length,
+      past: bookings.filter((b) => {
+        try {
+          return parseISO(b.check_out_date) < new Date();
+        } catch (e) {
+          return false;
+        }
+      }).length,
     };
     return stats;
   };
 
   const stats = getBookingStats();
 
-  if (!user && !isLoading) {
-    return null; // Will redirect in useEffect
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-32 pb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-20">
+            <div className="w-16 h-16 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+            <p className="text-gray-600">Loading your bookings...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-32 pb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-20">
+            <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8 text-rose-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">{error}</h3>
+            <button
+              onClick={() => router.push("/login")}
+              className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 transition-colors"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -297,13 +523,20 @@ const BookingsPage = () => {
               </p>
             </div>
 
-            <div className="mt-6 lg:mt-0">
+            <div className="mt-6 lg:mt-0 flex gap-3">
               <button
                 onClick={handleRefresh}
                 className="inline-flex items-center cursor-pointer px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-full font-medium hover:bg-gray-50 transition-colors"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
+              </button>
+              <button
+                onClick={() => router.push("/rooms")}
+                className="inline-flex items-center cursor-pointer px-5 py-2.5 bg-sky-600 text-white rounded-full font-medium hover:bg-sky-700 transition-colors"
+              >
+                Book New Room
+                <ArrowRight className="w-4 h-4 ml-2" />
               </button>
             </div>
           </div>
@@ -351,28 +584,13 @@ const BookingsPage = () => {
                   </option>
                 ))}
               </select>
-
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                <Filter className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-            <p className="text-gray-600">Loading your bookings...</p>
-          </div>
-        )}
-
         {/* Error State */}
-        {error && !isLoading && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+        {error && (
+          <div className="bg-white rounded-2xl shadow-lg p-8 text-center mb-8">
             <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-8 h-8 text-rose-500" />
             </div>
@@ -410,11 +628,15 @@ const BookingsPage = () => {
         )}
 
         {/* Bookings List */}
-        {!isLoading && !error && filteredBookings.length > 0 && (
+        {!isLoading && !error && currentBookings.length > 0 && (
           <div className="space-y-6">
-            {filteredBookings.map((booking) => {
-              const statusColor = getStatusColor(booking.booking_status);
-              const statusIcon = getStatusIcon(booking.booking_status);
+            {currentBookings.map((booking) => {
+              const statusColor = getStatusColor(
+                booking.displayStatus || booking.booking_status
+              );
+              const statusIcon = getStatusIcon(
+                booking.displayStatus || booking.booking_status
+              );
 
               return (
                 <div
@@ -425,17 +647,17 @@ const BookingsPage = () => {
                     <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                       {/* Room Image */}
                       <div className="lg:w-1/4">
-                        <div className="aspect-[4/3] relative rounded-xl overflow-hidden">
-                          {booking.roomImage ? (
+                        <div className="aspect-4/3 relative rounded-xl overflow-hidden bg-gradient-to-br from-sky-400 to-purple-500">
+                          {booking.room_image ? (
                             <Image
-                              src={booking.roomImage}
-                              alt={booking.roomTitle}
+                              src={booking.room_image}
+                              alt={booking.room_title}
                               fill
                               className="object-cover"
                               sizes="(max-width: 1024px) 100vw, 25vw"
                             />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-sky-400 to-purple-500 flex items-center justify-center">
+                            <div className="w-full h-full flex items-center justify-center">
                               <div className="text-white text-center">
                                 <div className="text-2xl font-bold opacity-20">
                                   Royal Moss
@@ -475,7 +697,8 @@ const BookingsPage = () => {
                             >
                               {statusIcon}
                               <span className="ml-2 capitalize">
-                                {booking.booking_status.replace("_", " ")}
+                                {booking.displayStatus ||
+                                  booking.booking_status}
                               </span>
                             </div>
                             <button
@@ -488,9 +711,9 @@ const BookingsPage = () => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                          <div className="bg-gray-50 p-4 rounded-xl">
-                            <div className="flex items-center text-gray-700 mb-2">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                          <div className="bg-gray-50 p-3 rounded-xl">
+                            <div className="flex items-center text-gray-700 mb-1">
                               <Users className="w-4 h-4 mr-2" />
                               <span className="text-sm font-medium">
                                 Guests
@@ -502,32 +725,32 @@ const BookingsPage = () => {
                             </div>
                           </div>
 
-                          <div className="bg-gray-50 p-4 rounded-xl">
-                            <div className="flex items-center text-gray-700 mb-2">
+                          <div className="bg-gray-50 p-3 rounded-xl">
+                            <div className="flex items-center text-gray-700 mb-1">
                               <CreditCard className="w-4 h-4 mr-2" />
                               <span className="text-sm font-medium">
                                 Total Amount
                               </span>
                             </div>
                             <div className="text-lg font-bold text-gray-900">
-                              {booking.total_amount} {booking.currency}
+                              ₦{(booking.total_amount || 0).toFixed(2)}K
                             </div>
                           </div>
 
-                          <div className="bg-gray-50 p-4 rounded-xl">
-                            <div className="flex items-center text-gray-700 mb-2">
+                          <div className="bg-gray-50 p-3 rounded-xl">
+                            <div className="flex items-center text-gray-700 mb-1">
                               <MapPin className="w-4 h-4 mr-2" />
                               <span className="text-sm font-medium">
                                 Booking ID
                               </span>
                             </div>
-                            <div className="font-mono text-lg font-bold text-gray-900">
+                            <div className="font-mono text-sm font-bold text-gray-900 truncate">
                               {booking.booking_id}
                             </div>
                           </div>
-                          <div className="bg-gray-50 p-4 rounded-xl">
-                            <div className="flex items-center text-gray-700 mb-2">
-                              <MapPin className="w-4 h-4 mr-2" />
+                          <div className="bg-gray-50 p-3 rounded-xl">
+                            <div className="flex items-center text-gray-700 mb-1">
+                              <Building className="w-4 h-4 mr-2" />
                               <span className="text-sm font-medium">
                                 Room Number
                               </span>
@@ -553,12 +776,27 @@ const BookingsPage = () => {
                             <Printer className="w-4 h-4 inline mr-2" />
                             Print Invoice
                           </button>
-                          {booking.booking_status === "confirmed" &&
-                            parseISO(booking.check_in_date) > new Date() && (
-                              <button className="px-5 py-2.5 border cursor-pointer border-rose-300 text-rose-700 rounded-lg font-medium hover:bg-rose-50 transition-colors">
-                                Cancel Booking
-                              </button>
-                            )}
+                          {booking.booking_status === "confirmed" && (
+                            <button
+                              onClick={() => {
+                                const checkIn = parseISO(booking.check_in_date);
+                                if (checkIn > new Date()) {
+                                  if (
+                                    confirm(
+                                      "Are you sure you want to cancel this booking?"
+                                    )
+                                  ) {
+                                    alert(
+                                      "Booking cancellation feature to be implemented"
+                                    );
+                                  }
+                                }
+                              }}
+                              className="px-5 py-2.5 border cursor-pointer border-rose-300 text-rose-700 rounded-lg font-medium hover:bg-rose-50 transition-colors"
+                            >
+                              Cancel Booking
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -566,6 +804,125 @@ const BookingsPage = () => {
                 </div>
               );
             })}
+
+            {/* Pagination */}
+            {filteredBookings.length > itemsPerPage && (
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-sm text-gray-600">
+                    Showing{" "}
+                    <span className="font-semibold text-gray-900">
+                      {indexOfFirstItem + 1}-
+                      {Math.min(indexOfLastItem, filteredBookings.length)}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-semibold text-gray-900">
+                      {filteredBookings.length}
+                    </span>{" "}
+                    bookings
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {/* First Page */}
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className={`p-2 rounded-lg ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      }`}
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Previous Page */}
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`p-2 rounded-lg ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center space-x-1">
+                      {getPageNumbers().map((pageNum, index) =>
+                        pageNum === "..." ? (
+                          <span
+                            key={`ellipsis-${index}`}
+                            className="px-2 text-gray-400"
+                          >
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                              currentPage === pageNum
+                                ? "bg-sky-600 text-white"
+                                : "text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    {/* Next Page */}
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`p-2 rounded-lg ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      }`}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+
+                    {/* Last Page */}
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className={`p-2 rounded-lg ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      }`}
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Items per page selector (optional) */}
+                  <div className="text-sm text-gray-600">
+                    <span className="mr-2">Show:</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        // If you want to make itemsPerPage dynamic
+                        // setItemsPerPage(Number(e.target.value));
+                        // setCurrentPage(1);
+                      }}
+                      className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      disabled
+                    >
+                      <option value="5">5 per page</option>
+                      <option value="10">10 per page</option>
+                      <option value="20">20 per page</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -595,177 +952,246 @@ const BookingsPage = () => {
               </button>
             </div>
           )}
+      </div>
 
-        {/* Booking Details Modal */}
-        {selectedBooking && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="relative max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl">
-              <div className="p-8">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Booking Details
-                    </h2>
-                    <p className="text-gray-600">
-                      Reference: {selectedBooking.booking_reference}
+      {/* Booking Details Modal */}
+      {selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl">
+            <div className="p-6 md:p-8">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Booking Details
+                  </h2>
+                  <p className="text-gray-600">
+                    Reference: {selectedBooking.booking_reference}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="p-2 hover:bg-gray-100 cursor-pointer rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Image */}
+              <div className="mb-6">
+                <div className="aspect-video relative rounded-xl overflow-hidden bg-linear-to-br from-sky-400 to-purple-500">
+                  {selectedBooking.room_image ? (
+                    <Image
+                      src={selectedBooking.room_image}
+                      alt={selectedBooking.room_title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 1024px) 100vw, 100vw"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="text-white text-center">
+                        <div className="text-3xl font-bold opacity-20">
+                          Royal Moss
+                        </div>
+                        <div className="text-lg opacity-40">Luxury Room</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div>
+                  <div className="bg-gray-50 rounded-xl p-5 mb-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Stay Information
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Room Type</span>
+                        <span className="font-medium">
+                          {selectedBooking.room_category ||
+                            selectedBooking.room_title}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Room Number</span>
+                        <span className="font-medium">
+                          {selectedBooking.room_number}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Booking ID</span>
+                        <span className="font-medium font-mono">
+                          {selectedBooking.booking_id}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Check-in</span>
+                        <span className="font-medium">
+                          {selectedBooking.formattedCheckIn}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Check-out</span>
+                        <span className="font-medium">
+                          {selectedBooking.formattedCheckOut}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Duration</span>
+                        <span className="font-medium">
+                          {selectedBooking.nights} nights
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Guests</span>
+                        <span className="font-medium">
+                          {selectedBooking.no_of_guests}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-5">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Payment Details
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Amount</span>
+                        <span className="font-bold">
+                          ₦{(selectedBooking.total_amount || 0).toFixed(2)}K
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Payment Status</span>
+                        <span
+                          className={`font-medium capitalize ${
+                            selectedBooking.payment_status === "paid"
+                              ? "text-emerald-600"
+                              : selectedBooking.payment_status === "pending"
+                              ? "text-amber-600"
+                              : "text-rose-600"
+                          }`}
+                        >
+                          {selectedBooking.payment_status}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Payment Method</span>
+                        <span className="font-medium capitalize">
+                          {selectedBooking.payment_method}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Booking Status</span>
+                        <span className="font-medium capitalize">
+                          {selectedBooking.booking_status}
+                        </span>
+                      </div>
+                      {selectedBooking.payment_reference && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Payment Ref</span>
+                          <span className="font-medium font-mono text-sm">
+                            {selectedBooking.payment_reference}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div>
+                  <div className="bg-gray-50 rounded-xl p-5 mb-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      Guest Information
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Full Name</p>
+                        <p className="font-medium">
+                          {selectedBooking.guest_name}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Email</p>
+                        <p className="font-medium">
+                          {selectedBooking.guest_email || "Not provided"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Phone</p>
+                        <p className="font-medium">
+                          {selectedBooking.guest_phone || "Not provided"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-5 mb-4">
+                    <h3 className="font-semibold text-gray-900 mb-3">
+                      Special Requests
+                    </h3>
+                    <p className="text-gray-700">
+                      {selectedBooking.special_requests ||
+                        "No special requests provided"}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setSelectedBooking(null)}
-                    className="p-2 hover:bg-gray-100 cursor-pointer rounded-full transition-colors"
-                  >
-                    <XCircle className="w-6 h-6 text-gray-500" />
-                  </button>
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Left Column */}
-                  <div>
-                    <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">
-                        Stay Information
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Room Type</span>
-                          <span className="font-medium">
-                            {selectedBooking.room_category}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Room Number</span>
-                          <span className="font-medium">
-                            {selectedBooking.room_number}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Booking ID</span>
-                          <span className="font-medium">
-                            {selectedBooking.booking_id}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Check-in</span>
-                          <span className="font-medium">
-                            {selectedBooking.formattedCheckIn}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Check-out</span>
-                          <span className="font-medium">
-                            {selectedBooking.formattedCheckOut}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Duration</span>
-                          <span className="font-medium">
-                            {selectedBooking.nights} nights
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Guests</span>
-                          <span className="font-medium">
-                            {selectedBooking.no_of_guests}
-                          </span>
-                        </div>
+                  <div className="bg-gray-50 rounded-xl p-5">
+                    <h3 className="font-semibold text-gray-900 mb-3">
+                      Booking Timeline
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Booking Created</span>
+                        <span className="font-medium">
+                          {selectedBooking.created_at
+                            ? format(
+                                new Date(selectedBooking.created_at),
+                                "MMM dd, yyyy HH:mm"
+                              )
+                            : "N/A"}
+                        </span>
                       </div>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-2xl p-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">
-                        Payment Details
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Total Amount</span>
-                          <span className="font-bold">
-                            {selectedBooking.total_amount}{" "}
-                            {selectedBooking.currency}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Payment Status</span>
-                          <span
-                            className={`font-medium capitalize ${
-                              selectedBooking.payment_status === "paid"
-                                ? "text-emerald-600"
-                                : "text-amber-600"
-                            }`}
-                          >
-                            {selectedBooking.payment_status}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Payment Method</span>
-                          <span className="font-medium capitalize">
-                            {selectedBooking.payment_method}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Booking status</span>
-                          <span className="font-medium capitalize">
-                            {selectedBooking.booking_status}
-                          </span>
-                        </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Check-in Date</span>
+                        <span className="font-medium">
+                          {selectedBooking.formattedCheckIn}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Check-out Date</span>
+                        <span className="font-medium">
+                          {selectedBooking.formattedCheckOut}
+                        </span>
                       </div>
                     </div>
                   </div>
-
-                  {/* Right Column */}
-                  <div>
-                    <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">
-                        Guest Information
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-sm text-gray-600">Full Name</p>
-                          <p className="font-medium">
-                            {selectedBooking.guest_name}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Email</p>
-                          <p className="font-medium">
-                            {selectedBooking.guest_email}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Phone</p>
-                          <p className="font-medium">
-                            {selectedBooking.guest_phone}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-2xl p-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">
-                        Special Requests
-                      </h3>
-                      <p className="text-gray-700">
-                        {selectedBooking.special_requests ||
-                          "No special requests"}
-                      </p>
-                    </div>
-                  </div>
                 </div>
+              </div>
 
-                {/* Action Buttons */}
-                <div className="mt-8 pt-8 border-t border-gray-200 flex justify-end space-x-4">
-                  <button
-                    onClick={() => handlePrintInvoice(selectedBooking)}
-                    className="px-6 py-3 border cursor-pointer border-gray-300 text-gray-700 rounded-full font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Print Invoice
-                  </button>
-                </div>
+              {/* Action Buttons */}
+              <div className="mt-8 pt-6 border-t border-gray-200 flex flex-wrap gap-3 justify-end">
+                <button
+                  onClick={() => handlePrintInvoice(selectedBooking)}
+                  className="px-6 py-3 border cursor-pointer border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  <Printer className="w-4 h-4 inline mr-2" />
+                  Print Invoice
+                </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

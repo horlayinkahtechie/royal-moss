@@ -9,6 +9,7 @@ const nextConfig = {
       "mlkyvftadbtjeiuhksnq.supabase.co",
       "images.unsplash.com",
       "media.istockphoto.com",
+      "plus.unsplash.com"
     ],
   },
 };

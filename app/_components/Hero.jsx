@@ -60,7 +60,7 @@ const Hero = () => {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
             <Link
-              href="/rooms"
+              href="/rooms/all"
               className="px-8 py-4 cursor-pointer bg-purple-600 text-white rounded-full font-semibold text-lg hover:bg-purple-700 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-lg"
             >
               Book Now
@@ -93,26 +93,6 @@ const Hero = () => {
               </span>
             </button>
           </div>
-
-          {/* Stats (Optional - Uncomment if needed) */}
-          {/* <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl">
-            {[
-              { value: "4.9", label: "Guest Rating", color: "text-purple-300" },
-              { value: "120+", label: "Luxury Rooms", color: "text-sky-300" },
-              { value: "24/7", label: "Concierge", color: "text-purple-300" },
-              { value: "5*", label: "Star Hotel", color: "text-sky-300" },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="text-center p-4 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg"
-              >
-                <div className={`text-3xl font-bold ${stat.color}`}>
-                  {stat.value}
-                </div>
-                <div className="text-sm text-white/90 mt-1">{stat.label}</div>
-              </div>
-            ))}
-          </div> */}
         </div>
       </div>
     </div>

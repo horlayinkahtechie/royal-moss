@@ -455,27 +455,28 @@ const RoomAvailability = () => {
                             {room.discountedTotal ? (
                               <>
                                 <span className="text-2xl font-bold text-gray-900">
-                                  ${room.discountedTotal}
+                                  ₦{room.discountedTotal}K
                                 </span>
                                 <span className="ml-2 text-lg text-gray-500 line-through">
-                                  ${room.totalPrice}
+                                  ₦{room.totalPrice}K
                                 </span>
                                 <span className="ml-2 text-sm font-bold text-emerald-600">
-                                  Save ${room.totalPrice - room.discountedTotal}
+                                  Save ₦{room.totalPrice - room.discountedTotal}
+                                  K
                                 </span>
                               </>
                             ) : (
                               <span className="text-2xl font-bold text-gray-900">
-                                ${room.totalPrice}
+                                ₦{room.totalPrice}K
                               </span>
                             )}
                             <span className="ml-2 text-gray-600">total</span>
                           </div>
                           <p className="text-sm text-gray-500 mt-1">
-                            $
+                            ₦
                             {room.discounted_price_per_night ||
-                              room.price_per_night}{" "}
-                            per night
+                              room.price_per_night}
+                            K per night
                           </p>
                         </div>
 

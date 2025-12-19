@@ -89,22 +89,6 @@ const WhyChooseUs = () => {
                 </div>
               ))}
             </div>
-
-            {/* Stats */}
-            <div className="mt-12 grid grid-cols-3 gap-6 p-6 bg-sky-600 rounded-2xl text-white">
-              <div className="text-center">
-                <div className="text-3xl font-bold">10K+</div>
-                <div className="text-sm opacity-90">Happy Guests</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold">150+</div>
-                <div className="text-sm opacity-90">Team Members</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold">15</div>
-                <div className="text-sm opacity-90">Years Excellence</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

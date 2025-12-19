@@ -50,6 +50,7 @@ export default function Book() {
   const roomType = searchParams.get("type");
   const roomPrice = searchParams.get("price");
   const roomTitle = searchParams.get("title");
+  const roomImage = searchParams.get("roomImage");
 
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -193,50 +194,6 @@ export default function Book() {
     existingBookings,
   ]);
 
-  const fetchRoomDetails = async () => {
-    if (!roomId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("rooms")
-        .select("*")
-        .eq("id", roomId)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setRoom({
-          id: data.id,
-          title:
-            roomTitle ||
-            data.room_category
-              .split("-")
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(" "),
-          price: data.price_per_night,
-          discountedPrice: data.discounted_price_per_night,
-          rating: data.user_ratings || 4.5,
-          guests: data.no_of_guest,
-          size: data.room_dismesion,
-          roomNumber: data.room_number,
-          floor: data.floor || "3rd",
-          view: data.view || "Ocean View",
-          description: data.room_description,
-          images: Array.isArray(data.room_image)
-            ? data.room_image
-            : data.room_image
-            ? JSON.parse(data.room_image)
-            : [],
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching room details:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const fetchExistingBookings = async () => {
     if (!roomType) return;
 
@@ -376,6 +333,62 @@ export default function Book() {
     }
   };
 
+  const fetchRoomDetails = async () => {
+    if (!roomId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("id", roomId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        // Get images array safely
+        let images = [];
+        if (data.room_image) {
+          if (Array.isArray(data.room_image)) {
+            images = data.room_image;
+          } else if (typeof data.room_image === "string") {
+            try {
+              const parsed = JSON.parse(data.room_image);
+              images = Array.isArray(parsed) ? parsed : [parsed];
+            } catch (e) {
+              // If it's a single URL string
+              images = [data.room_image];
+            }
+          }
+        }
+
+        setRoom({
+          id: data.id,
+          title:
+            roomTitle ||
+            data.room_category
+              .split("-")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" "),
+          price: data.price_per_night,
+          discountedPrice: data.discounted_price_per_night,
+          rating: data.user_ratings || 4.5,
+          guests: data.no_of_guest,
+          size: data.room_dismesion,
+          roomNumber: data.room_number,
+          floor: data.floor || "3rd",
+          view: data.view || "Ocean View",
+          description: data.room_description,
+          images: images,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching room details:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -400,12 +413,6 @@ export default function Book() {
       return;
     }
 
-    if (!user) {
-      alert("Please login to book a room");
-      router.push("/login");
-      return;
-    }
-
     setIsSubmitting(true);
     let bookingRef;
 
@@ -418,27 +425,40 @@ export default function Book() {
       const price = room?.price || parseFloat(roomPrice) || 0;
       const totalAmount = noOfNights * price;
 
-      // Prepare booking data
+      // Get the room image - try multiple sources
+      let roomImageToSave = roomImage || "";
+      if (!roomImageToSave && room?.images?.length > 0) {
+        roomImageToSave = room.images[0];
+      }
+
+      // Prepare booking data with correct field names
       const bookingFormData = {
         check_in_date: formData.checkInDate,
         check_out_date: formData.checkOutDate,
-        room_number: room?.roomNumber || bookingRef,
+        room_number: room?.roomNumber || `Room ${roomId?.slice(-4)}`,
         user_id: user.id,
         guest_name: formData.guestName,
         guest_email: formData.guestEmail,
         guest_phone: formData.guestPhone,
         room_category: roomType,
-        // room_id: roomId,
         no_of_nights: noOfNights,
         price_per_night: price,
-        room_image: getRoomImage,
-        room_title: "Room Title",
+        room_image: roomImageToSave,
+        room_title: room?.title || roomTitle || "Room Booking",
         no_of_guests: parseInt(formData.noOfGuests),
         total_amount: totalAmount,
         currency: "NGN",
         payment_method: formData.paymentMethod,
         special_requests: formData.specialRequests,
+        booking_id: bookingRef,
       };
+
+      console.log("Booking data being saved:", {
+        roomImageToSave,
+        roomImages: room?.images,
+        roomImageParam: roomImage,
+        roomTitle: room?.title || roomTitle,
+      });
 
       // Store in localStorage BEFORE payment
       if (typeof window !== "undefined") {
@@ -457,10 +477,10 @@ export default function Book() {
         }, 30 * 60 * 1000); // 30 minutes
       }
 
-      // Process PayStack payment with inline JS
+      // Process PayStack payment
       await processPayment({
         email: formData.guestEmail,
-        amount: totalAmount,
+        amount: totalAmount * 100, // Paystack expects amount in kobo (multiply by 100)
         reference: bookingRef,
         metadata: {
           booking_id: bookingRef,
@@ -493,20 +513,20 @@ export default function Book() {
               );
             }
 
+            // Add payment details to booking data
+            const finalBookingData = {
+              ...bookingFormData,
+              payment_reference: transaction.reference,
+              payment_status: "paid",
+              booking_status: "confirmed",
+              payment_data: transaction,
+              created_at: new Date().toISOString(),
+            };
+
             // Create booking in database
             const { data: bookingData, error: bookingError } = await supabase
               .from("bookings")
-              .insert([
-                {
-                  ...bookingFormData,
-                  booking_id: bookingRef,
-                  payment_reference: transaction.reference,
-                  payment_status: "paid",
-                  booking_status: "confirmed",
-                  payment_data: transaction,
-                  created_at: new Date().toISOString(),
-                },
-              ])
+              .insert([finalBookingData])
               .select()
               .single();
 
@@ -760,10 +780,14 @@ export default function Book() {
   };
 
   const getRoomImage = (images) => {
-    if (!images || images.length === 0) {
+    if (!images || !Array.isArray(images) || images.length === 0) {
       return null;
     }
-    return images[0];
+    const validImages = images.filter(
+      (img) => img && typeof img === "string" && img.trim() !== ""
+    );
+
+    return validImages.length > 0 ? validImages[0] : null;
   };
 
   if (isLoading) {
@@ -858,7 +882,7 @@ export default function Book() {
                   <div>
                     <p className="text-sm text-gray-600">Total Amount</p>
                     <p className="text-2xl font-bold text-emerald-600">
-                      ${calculatedValues.totalAmount.toFixed(2)}
+                      ₦{calculatedValues.totalAmount.toFixed(2)}K
                     </p>
                   </div>
                   <div>
@@ -1063,7 +1087,7 @@ export default function Book() {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Price per night</span>
-                          <span className="font-medium">${room.price}</span>
+                          <span className="font-medium">₦{room.price}K</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">
@@ -1078,7 +1102,7 @@ export default function Book() {
                             Total Amount
                           </span>
                           <span className="text-2xl font-bold text-emerald-600">
-                            ${calculatedValues.totalAmount.toFixed(2)}
+                            ₦{calculatedValues.totalAmount.toFixed(2)}K
                           </span>
                         </div>
                       </div>
@@ -1214,7 +1238,7 @@ export default function Book() {
                             ✓ {calculatedValues.noOfNights} night(s) selected
                           </span>
                           <span className="font-semibold ml-2">
-                            • ${calculatedValues.totalAmount.toFixed(2)} total
+                            • ₦{calculatedValues.totalAmount.toFixed(2)}K total
                           </span>
                         </p>
                       </div>
@@ -1312,9 +1336,9 @@ export default function Book() {
                         Processing Payment...
                       </span>
                     ) : (
-                      `Pay with PayStack • $${calculatedValues.totalAmount.toFixed(
+                      `Pay with PayStack • ₦${calculatedValues.totalAmount.toFixed(
                         2
-                      )}`
+                      )}K`
                     )}
                   </button>
                 </div>

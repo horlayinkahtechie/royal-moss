@@ -23,7 +23,6 @@ const Navbar = () => {
     { label: "Bookings", href: "/bookings" },
   ];
 
-  // Check if a link is active
   const isActive = (href) => {
     if (href === "/") {
       return pathname === "/";

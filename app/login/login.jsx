@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import heroImage from "@/public/images/heroImage.jpg";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -197,12 +198,12 @@ export default function LoginPage() {
                   <label className="text-sm font-medium text-gray-700">
                     Password
                   </label>
-                  <a
+                  <Link
                     href="/forgot-password"
                     className="text-sm text-sky-600 hover:text-sky-700 transition-colors"
                   >
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 transform -translate-y-1/2">

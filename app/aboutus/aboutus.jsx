@@ -18,6 +18,8 @@ import {
 
 // Mock images - replace with your actual images
 import HotelExterior from "@/public/images/deluxe-room.jpg";
+const hotelImage =
+  "https://images.unsplash.com/photo-1455587734955-081b22074882?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fGhvdGVsfGVufDB8fDB8fHww";
 
 const AboutPage = () => {
   const [activeMilestone, setActiveMilestone] = useState(2024);
@@ -164,10 +166,24 @@ const AboutPage = () => {
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <button className="px-6 py-3 bg-white text-sky-600 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:-translate-y-1">
+                <button
+                  onClick={() => {
+                    document
+                      .getElementById("our-story")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="px-6 py-3 cursor-pointer bg-white text-sky-600 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:-translate-y-1"
+                >
                   Explore Our Story
                 </button>
-                <button className="px-6 py-3 border-2 border-white/40 text-white rounded-full font-semibold hover:border-white hover:bg-white/10 transition-all duration-300">
+                <button
+                  onClick={() => {
+                    document
+                      .getElementById("our-team")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="px-6 py-3 cursor-pointer border-2 border-white/40 text-white rounded-full font-semibold hover:border-white hover:bg-white/10 transition-all duration-300"
+                >
                   Meet Our Team
                 </button>
               </div>
@@ -204,7 +220,7 @@ const AboutPage = () => {
       </section>
 
       {/* Our Story */}
-      <section className="py-20">
+      <section className="py-20" id="our-story">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative  h-100 rounded-3xl overflow-hidden shadow-2xl">
@@ -357,7 +373,7 @@ const AboutPage = () => {
       </section>
 
       {/* Leadership Team */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50" id="our-team">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -455,31 +471,14 @@ const AboutPage = () => {
               </div>
             </div>
 
-            <div className="bg-linear-to-br from-sky-600 to-purple-600 rounded-3xl p-8 text-white">
-              <div className="text-center mb-8">
-                <Trophy className="w-16 h-16 mx-auto mb-4 text-white/80" />
-                <h3 className="text-2xl font-bold mb-2">Global Recognition</h3>
-                <p className="text-white/80">
-                  Consistently ranked among the world&apos;s best luxury hotels
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                {[
-                  { value: "#1", label: "Luxury Hotel in Region" },
-                  { value: "Top 10", label: "Worldwide" },
-                  { value: "5★", label: "Service Rating" },
-                  { value: "98%", label: "Guest Satisfaction" },
-                ].map((stat, index) => (
-                  <div
-                    key={index}
-                    className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center"
-                  >
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <div className="text-sm text-white/80">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="relative w-full h-125 lg:h-150">
+              <Image
+                src={hotelImage}
+                alt="Royal Moss Image"
+                fill
+                className="rounded-3xl object-cover"
+                priority
+              />
             </div>
           </div>
         </div>

@@ -817,7 +817,7 @@ export default function AllRooms() {
                           </button>
                           <button
                             onClick={() => handleBookNow(room.id, room)}
-                            className="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold hover:bg-sky-700 transition-colors transform hover:-translate-y-0.5"
+                            className="px-4 py-2 cursor-pointer bg-sky-600 text-white rounded-lg text-sm font-semibold hover:bg-sky-700 transition-colors transform hover:-translate-y-0.5"
                           >
                             Book Now
                           </button>

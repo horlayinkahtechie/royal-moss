@@ -230,7 +230,7 @@ const ServicesPage = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-24 overflow-hidden bg-linear-to-br from-gray-900 via-sky-900 to-purple-900">
+      <section className="relative pt-32 pb-24 overflow-hidden inset-0 bg-linear-to-br from-sky-900/90 via-purple-900/80 to-gray-900/90 z-10">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[url('/images/service-pattern.svg')] opacity-10"></div>
           <div className="absolute inset-0 bg-linear-to-t from-black/30 via-transparent to-transparent"></div>
@@ -260,7 +260,14 @@ const ServicesPage = () => {
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
-              <button className="px-8 py-4 cursor-pointer bg-linear-to-r from-sky-500 to-purple-500 text-white rounded-full font-semibold text-lg hover:from-sky-600 hover:to-purple-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl shadow-lg">
+              <button
+                onClick={() => {
+                  document
+                    .getElementById("our-services")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="px-8 py-4 cursor-pointer bg-linear-to-r from-sky-500 to-purple-500 text-white rounded-full font-semibold text-lg hover:from-sky-600 hover:to-purple-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl shadow-lg"
+              >
                 Explore All Services
               </button>
             </div>
@@ -298,7 +305,10 @@ const ServicesPage = () => {
       </section>
 
       {/* Services Filter */}
-      <section className="py-12 bg-gray-50 sticky top-0 z-40 shadow-sm">
+      <section
+        className="py-12  bg-gray-50 sticky top-0 z-40 shadow-sm"
+        id="our-services"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <h2 className="text-2xl font-bold text-gray-900">

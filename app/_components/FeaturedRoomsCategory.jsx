@@ -506,13 +506,6 @@ const Rooms = () => {
                     </div>
                   )}
 
-                  {/* Category number indicator for mobile scroll */}
-                  <div className="md:hidden absolute top-4 right-4 w-6 h-6 bg-sky-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">
-                      {index + 1}
-                    </span>
-                  </div>
-
                   {/* Most Popular Badge */}
                   {index === 0 && (
                     <div className="md:absolute md:top-4 md:right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold z-10">

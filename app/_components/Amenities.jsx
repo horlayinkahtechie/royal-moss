@@ -212,13 +212,6 @@ const Amenities = () => {
 
                 {/* Hover Effect Line with animation */}
                 <div className="mt-6 h-1 w-8 group-hover:w-full bg-sky-500 transition-all duration-500 rounded-full"></div>
-
-                {/* Hidden number indicator for mobile scroll */}
-                <div className="md:hidden absolute -top-2 -right-2 w-6 h-6 bg-sky-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
-                    {index + 1}
-                  </span>
-                </div>
               </div>
             ))}
           </div>

@@ -10,24 +10,61 @@ import {
   CheckCircle,
   Hotel,
 } from "lucide-react";
+import supabase from "../lib/supabase";
 
 export default function ForgotPassword() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) return;
+
+    if (!email) {
+      return;
+    }
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
       setIsSubmitted(true);
-    }, 1500);
+      setCountdown(60);
+
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error) {
+      console.error("Password reset error:", error.message);
+
+      setIsSubmitted(true);
+      setCountdown(60);
+
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResend = () => {
@@ -53,18 +90,8 @@ export default function ForgotPassword() {
             </button>
 
             <div className="mb-10">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-sky-100 rounded-lg">
-                  <Hotel className="w-6 h-6 text-sky-600" />
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900">Royal Moss</h1>
-              </div>
-
               {!isSubmitted ? (
                 <>
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
-                    <Shield className="w-6 h-6 text-purple-600" />
-                  </div>
                   <h2 className="text-3xl font-bold text-gray-900 mb-2">
                     Reset Your Password
                   </h2>
@@ -115,7 +142,7 @@ export default function ForgotPassword() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 bg-sky-600 text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="w-full py-3.5 cursor-pointer bg-sky-600 text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center">
@@ -165,7 +192,7 @@ export default function ForgotPassword() {
                   <button
                     onClick={handleResend}
                     disabled={isLoading}
-                    className="w-full py-3.5 border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3.5 border-2 cursor-pointer border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <span className="flex items-center justify-center">
@@ -179,7 +206,7 @@ export default function ForgotPassword() {
 
                   <button
                     onClick={() => router.push("/login")}
-                    className="w-full py-3.5 bg-sky-600 text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg"
+                    className="w-full py-3.5 bg-sky-600 cursor-pointer text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg"
                   >
                     Return to Login
                   </button>

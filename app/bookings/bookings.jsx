@@ -901,25 +901,6 @@ const BookingsPage = () => {
                       <ChevronsRight className="w-4 h-4" />
                     </button>
                   </div>
-
-                  {/* Items per page selector (optional) */}
-                  <div className="text-sm text-gray-600">
-                    <span className="mr-2">Show:</span>
-                    <select
-                      value={itemsPerPage}
-                      onChange={(e) => {
-                        // If you want to make itemsPerPage dynamic
-                        // setItemsPerPage(Number(e.target.value));
-                        // setCurrentPage(1);
-                      }}
-                      className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      disabled
-                    >
-                      <option value="5">5 per page</option>
-                      <option value="10">10 per page</option>
-                      <option value="20">20 per page</option>
-                    </select>
-                  </div>
                 </div>
               </div>
             )}

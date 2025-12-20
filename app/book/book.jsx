@@ -86,6 +86,12 @@ export default function Book() {
   });
 
   useEffect(() => {
+    if (bookingSuccess) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [bookingSuccess]);
+
+  useEffect(() => {
     const getUser = async () => {
       try {
         const {

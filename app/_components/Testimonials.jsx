@@ -191,13 +191,6 @@ const Testimonials = () => {
                 key={testimonial.name}
                 className="shrink-0 w-80 md:w-auto md:shrink md:min-w-0 group bg-white rounded-3xl shadow-xl p-8 border border-gray-200 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2"
               >
-                {/* Testimonial number indicator for mobile */}
-                <div className="md:hidden absolute -top-2 -right-2 w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
-                    {index + 1}
-                  </span>
-                </div>
-
                 {/* Quote Icon with animation */}
                 <div className="relative mb-6">
                   <Quote className="w-12 h-12 text-gray-200" />

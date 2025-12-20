@@ -135,12 +135,6 @@ export default function LoginPage() {
           {/* Left Column - Form */}
           <div className="p-8 sm:p-12 lg:p-16">
             <div className="mb-10">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-sky-100 rounded-lg">
-                  <Hotel className="w-6 h-6 text-sky-600" />
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900">Royal Moss</h1>
-              </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 Welcome Back
               </h2>
@@ -312,27 +306,6 @@ export default function LoginPage() {
                 </p>
               </div>
             </form>
-
-            {/* Trust Badges */}
-            <div className="mt-10 pt-6 border-t border-gray-100">
-              <p className="text-xs text-gray-500 text-center mb-4">
-                Trusted by thousands of luxury travelers
-              </p>
-              <div className="flex justify-center space-x-6 opacity-70">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-gray-900">4.9★</div>
-                  <div className="text-xs text-gray-500">Rating</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-gray-900">10K+</div>
-                  <div className="text-xs text-gray-500">Guests</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-gray-900">100%</div>
-                  <div className="text-xs text-gray-500">Secure</div>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Right Column - Image */}
@@ -366,31 +339,6 @@ export default function LoginPage() {
                   exclusive offers, and customize your stay preferences.
                 </p>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Image Section */}
-        <div className="lg:hidden mt-8 bg-linear-to-br from-sky-600 to-purple-600 rounded-3xl p-8 text-white">
-          <div className="text-center mb-6">
-            <h3 className="text-2xl font-bold mb-3">Welcome to Royal Moss</h3>
-            <p className="text-white/80">
-              Sign in to access exclusive member benefits and personalized
-              services
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-2xl font-bold">4.9★</div>
-              <div className="text-xs opacity-90">Guest Rating</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-2xl font-bold">10K+</div>
-              <div className="text-xs opacity-90">Happy Guests</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-2xl font-bold">24/7</div>
-              <div className="text-xs opacity-90">Support</div>
             </div>
           </div>
         </div>

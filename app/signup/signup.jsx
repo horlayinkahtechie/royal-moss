@@ -16,6 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import Link from "next/link";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -227,20 +228,12 @@ export default function SignupPage() {
           <div className="p-8 sm:p-12 lg:p-16">
             <div className="mb-8">
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-sky-100 rounded-lg">
-                    <Hotel className="w-6 h-6 text-sky-600" />
-                  </div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Royal Moss
-                  </h1>
-                </div>
-                <a
+                <Link
                   href="/login"
                   className="text-sm text-sky-600 hover:text-sky-700 transition-colors font-medium"
                 >
                   Already have an account?
-                </a>
+                </Link>
               </div>
 
               <h2 className="text-3xl font-bold text-gray-900 mb-2">

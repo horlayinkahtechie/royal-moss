@@ -16,7 +16,20 @@ import {
   Wind,
   ChevronLeft,
   ChevronRight,
+  TvIcon,
+  Home,
+  DumbbellIcon,
+  WindIcon,
+  CarIcon,
+  DogIcon,
+  BedIcon,
+  Fan,
+  Building,
 } from "lucide-react";
+import { BiWater } from "react-icons/bi";
+import { FaCity, FaDigitalOcean } from "react-icons/fa";
+import { GrLounge } from "react-icons/gr";
+import { MdIron } from "react-icons/md";
 
 const FeaturedRooms = () => {
   const [rooms, setRooms] = useState([]);
@@ -25,6 +38,89 @@ const FeaturedRooms = () => {
   const scrollContainerRef = useRef(null);
   const [showLeftScroll, setShowLeftScroll] = useState(false);
   const [showRightScroll, setShowRightScroll] = useState(true);
+
+  // Enhanced formatPrice function with Millions, Billions, and Thousands
+  const formatPrice = (price) => {
+    if (!price && price !== 0) return "N/A";
+
+    // Remove commas and convert to number
+    const numPrice =
+      typeof price === "string"
+        ? parseFloat(price.replace(/,/g, ""))
+        : Number(price);
+
+    if (isNaN(numPrice)) return price; // Return original if not a number
+
+    // Handle billions (1,000,000,000+)
+    if (numPrice >= 1000000000) {
+      const inBillions = numPrice / 1000000000;
+      if (Number.isInteger(inBillions)) {
+        return `₦${inBillions}B`;
+      } else {
+        return `₦${inBillions.toFixed(1)}B`;
+      }
+    }
+
+    // Handle millions (1,000,000 - 999,999,999)
+    if (numPrice >= 1000000) {
+      const inMillions = numPrice / 1000000;
+      if (Number.isInteger(inMillions)) {
+        return `₦${inMillions}M`;
+      } else {
+        return `₦${inMillions.toFixed(1)}M`;
+      }
+    }
+
+    // Handle thousands (1,000 - 999,999)
+    if (numPrice >= 1000) {
+      const inThousands = numPrice / 1000;
+      if (Number.isInteger(inThousands)) {
+        return `₦${inThousands}k`;
+      } else {
+        return `₦${inThousands.toFixed(1)}k`;
+      }
+    }
+
+    // If less than 1,000, return as is with currency symbol
+    return `₦${numPrice.toString()}`;
+  };
+
+  // Format price for display with comma separators (optional)
+  const formatPriceWithCommas = (price) => {
+    if (!price && price !== 0) return "N/A";
+
+    const numPrice =
+      typeof price === "string"
+        ? parseFloat(price.replace(/,/g, ""))
+        : Number(price);
+
+    if (isNaN(numPrice)) return price;
+
+    return `₦${numPrice.toLocaleString("en-US")}`;
+  };
+
+  // Format SAVE amount properly
+  const formatSaveAmount = (amount) => {
+    if (!amount && amount !== 0) return "₦0";
+
+    const numAmount =
+      typeof amount === "string"
+        ? parseFloat(amount.replace(/,/g, ""))
+        : Number(amount);
+
+    if (isNaN(numAmount)) return `₦${amount}`;
+
+    // For SAVE amounts, use similar formatting but smaller thresholds
+    if (numAmount >= 1000000) {
+      const inMillions = numAmount / 1000000;
+      return `₦${inMillions.toFixed(1)}M`;
+    } else if (numAmount >= 1000) {
+      const inThousands = numAmount / 1000;
+      return `₦${inThousands.toFixed(1)}k`;
+    } else {
+      return `₦${Math.round(numAmount)}`;
+    }
+  };
 
   // Shuffle array function - Fisher-Yates algorithm
   const shuffleArray = (array) => {
@@ -46,7 +142,7 @@ const FeaturedRooms = () => {
       const { data: allRooms, error: fetchError } = await supabase
         .from("rooms")
         .select(
-          "id, room_category, room_description, price_per_night, discounted_price_per_night, user_ratings, no_of_guest, room_dismesion, amenities, room_image"
+          "id, room_category, room_description, price_per_night, discounted_price_per_night, user_ratings, no_of_guest, room_dimension, amenities, room_image"
         )
         .eq("room_availability", true);
 
@@ -77,7 +173,7 @@ const FeaturedRooms = () => {
         discountedPrice: room.discounted_price_per_night,
         rating: room.user_ratings || 4.5,
         guests: room.no_of_guest,
-        size: room.room_dismesion,
+        size: room.room_dimension,
         amenities: Array.isArray(room.amenities)
           ? room.amenities.slice(0, 3) // Show only first 3 amenities
           : room.amenities
@@ -94,43 +190,9 @@ const FeaturedRooms = () => {
     } catch (err) {
       console.error("Error fetching random rooms:", err);
       setError("Failed to load featured rooms");
-      // Fallback to mock data if API fails
-      setRooms(getMockRooms());
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Mock data for fallback
-  const getMockRooms = () => {
-    const roomTypes = [
-      "Deluxe Ocean View",
-      "Executive Suite",
-      "Presidential Apartment",
-      "Family Luxury Suite",
-      "Premium City View",
-      "Honeymoon Suite",
-      "Business Class Room",
-      "Penthouse Suite",
-    ];
-
-    return Array.from({ length: 8 }, (_, index) => ({
-      id: `mock-${index}`,
-      title: roomTypes[index % roomTypes.length],
-      description:
-        "Experience luxury and comfort in our beautifully appointed rooms with stunning views and premium amenities.",
-      price: Math.floor(Math.random() * 300) + 200,
-      discountedPrice:
-        Math.random() > 0.5 ? Math.floor(Math.random() * 250) + 150 : null,
-      rating: (Math.random() * 2 + 3.5).toFixed(1),
-      guests: Math.floor(Math.random() * 4) + 1,
-      size: `${Math.floor(Math.random() * 200) + 300} sq ft`,
-      amenities: ["Free WiFi", "Breakfast Included", "Sea View"].slice(
-        0,
-        Math.floor(Math.random() * 3) + 1
-      ),
-      images: [],
-    }));
   };
 
   // Check scroll position
@@ -181,14 +243,45 @@ const FeaturedRooms = () => {
     return images[0];
   };
 
-  // Amenity icons mapping
   const amenityIcons = {
     "Free WiFi": Wifi,
+    "Wi-Fi": Wifi,
+    TV: TvIcon,
+    "Mini Bar": Coffee,
+    Balcony: Home,
+    Jacuzzi: Maximize2,
+    Safe: Shield,
+    "Room Service": Coffee,
+    Breakfast: Coffee,
+    "Pool Access": BiWater,
+    "Gym Access": DumbbellIcon,
+    "Spa Access": WindIcon,
+    Parking: CarIcon,
+    "Pet Friendly": DogIcon,
+    "Ocean View": FaDigitalOcean,
     "Breakfast Included": Coffee,
     "Sea View": MapPin,
-    "Air Conditioning": Wind,
-    "King Bed": Users,
+    "King Size Bed": BedIcon,
+    "Executive Lounge": GrLounge,
+    "Butler Service": Users,
+    "City View": FaCity,
     "Private Pool": Maximize2,
+    "Gourmet Kitchen": Shield,
+    "Cinema Room": Shield,
+    "24/7 Butler": Users,
+    "Kids Club Access": Users,
+    "Connected Rooms": Building,
+    "Game Console": Shield,
+    "Family Amenities": Users,
+    "Air Conditioning": Wind,
+    "Room Service": Shield,
+    Minibar: Coffee,
+    "Smart TV": Shield,
+    "Coffee Maker": Coffee,
+    Safe: Shield,
+    "Hair Dryer": Wind,
+    "Pressing Iron": MdIron,
+    "Standing Fan": Fan,
   };
 
   const renderAmenityIcon = (amenity) => {
@@ -368,7 +461,8 @@ const FeaturedRooms = () => {
                     {/* Discount Badge */}
                     {room.discountedPrice && (
                       <div className="absolute top-3 left-3 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
-                        SAVE ₦{room.price - room.discountedPrice}K
+                        SAVE{" "}
+                        {formatSaveAmount(room.price - room.discountedPrice)}
                       </div>
                     )}
                   </div>
@@ -417,22 +511,21 @@ const FeaturedRooms = () => {
                       </div>
                     )}
 
-                    {/* Price & Action */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                       <div>
                         <div className="flex items-center">
                           {room.discountedPrice ? (
                             <>
                               <span className="text-xl font-bold text-gray-900">
-                                ₦{room.discountedPrice}K
+                                {formatPrice(room.discountedPrice)}
                               </span>
                               <span className="ml-2 text-sm text-gray-500 line-through">
-                                ₦{room.price}K
+                                {formatPrice(room.price)}
                               </span>
                             </>
                           ) : (
                             <span className="text-xl font-bold text-gray-900">
-                              ₦{room.price}K
+                              {formatPrice(room.price)}
                             </span>
                           )}
                           <span className="ml-1 text-sm text-gray-600">

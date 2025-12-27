@@ -13,6 +13,61 @@ import {
 } from "lucide-react";
 import { format, parseISO, startOfDay, addDays } from "date-fns";
 
+// Utility function to format price with K, M, B suffixes
+const formatPrice = (amount, includeK = false) => {
+  if (amount === null || amount === undefined) return "₦0";
+
+  // Convert to number if it's a string
+  const numericAmount =
+    typeof amount === "string"
+      ? parseFloat(amount.replace(/[^0-9.-]+/g, ""))
+      : Number(amount);
+
+  if (isNaN(numericAmount)) return "₦0";
+
+  if (Math.abs(numericAmount) >= 1000000000) {
+    return `₦${(numericAmount / 1000000000).toFixed(1).replace(/\.0$/, "")}B`;
+  } else if (Math.abs(numericAmount) >= 1000000) {
+    return `₦${(numericAmount / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
+  } else if (Math.abs(numericAmount) >= 1000) {
+    return `₦${(numericAmount / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+  } else {
+    return `₦${numericAmount}${includeK && numericAmount !== 0 ? "K" : ""}`;
+  }
+};
+
+// Helper function to extract numeric value from price (handles both formatted strings and numbers)
+const extractNumericPrice = (priceValue) => {
+  if (priceValue === null || priceValue === undefined) return 0;
+
+  // If it's already a number, return it
+  if (typeof priceValue === "number") return priceValue;
+
+  // If it's a string, parse it
+  if (typeof priceValue === "string") {
+    // Remove currency symbol and any commas
+    let cleanValue = priceValue.replace(/[₦,]/g, "").trim();
+
+    // Check for K, M, B suffixes
+    if (cleanValue.endsWith("B") || cleanValue.endsWith("b")) {
+      const number = parseFloat(cleanValue.slice(0, -1));
+      return number * 1000000000;
+    } else if (cleanValue.endsWith("M") || cleanValue.endsWith("m")) {
+      const number = parseFloat(cleanValue.slice(0, -1));
+      return number * 1000000;
+    } else if (cleanValue.endsWith("K") || cleanValue.endsWith("k")) {
+      const number = parseFloat(cleanValue.slice(0, -1));
+      return number * 1000;
+    } else {
+      // Just a plain number
+      return parseFloat(cleanValue) || 0;
+    }
+  }
+
+  // If it's something else, try to convert to number
+  return Number(priceValue) || 0;
+};
+
 const RoomAvailability = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -163,9 +218,17 @@ const RoomAvailability = () => {
           // Calculate number of nights and total price
           const diffTime = Math.abs(checkOut - checkIn);
           const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          const totalPrice = nights * room.price_per_night;
-          const discountedTotal = room.discounted_price_per_night
-            ? nights * room.discounted_price_per_night
+
+          // Extract numeric price values
+          const pricePerNight = extractNumericPrice(room.price_per_night);
+          const discountedPricePerNight = room.discounted_price_per_night
+            ? extractNumericPrice(room.discounted_price_per_night)
+            : null;
+
+          // Calculate totals
+          const totalPrice = nights * pricePerNight;
+          const discountedTotal = discountedPricePerNight
+            ? nights * discountedPricePerNight
             : null;
 
           availableRoomsList.push({
@@ -196,11 +259,15 @@ const RoomAvailability = () => {
   };
 
   const handleBookNow = (room) => {
-    // Navigate to booking page with room details
+    // Extract numeric price for URL
+    const pricePerNight = extractNumericPrice(
+      room.discounted_price_per_night || room.price_per_night
+    );
+
     router.push(
-      `/book?roomId=${room.id}&type=${room.room_category}&price=${
-        room.price_per_night
-      }&title=${encodeURIComponent(
+      `/book?roomId=${room.id}&type=${
+        room.room_category
+      }&price=${pricePerNight}&title=${encodeURIComponent(
         room.room_category
           .split("-")
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -455,28 +522,32 @@ const RoomAvailability = () => {
                             {room.discountedTotal ? (
                               <>
                                 <span className="text-2xl font-bold text-gray-900">
-                                  ₦{room.discountedTotal}K
+                                  {formatPrice(room.discountedTotal)}
                                 </span>
                                 <span className="ml-2 text-lg text-gray-500 line-through">
-                                  ₦{room.totalPrice}K
+                                  {formatPrice(room.totalPrice)}
                                 </span>
                                 <span className="ml-2 text-sm font-bold text-emerald-600">
-                                  Save ₦{room.totalPrice - room.discountedTotal}
-                                  K
+                                  Save{" "}
+                                  {formatPrice(
+                                    room.totalPrice - room.discountedTotal
+                                  )}
                                 </span>
                               </>
                             ) : (
                               <span className="text-2xl font-bold text-gray-900">
-                                ₦{room.totalPrice}K
+                                {formatPrice(room.totalPrice)}
                               </span>
                             )}
                             <span className="ml-2 text-gray-600">total</span>
                           </div>
                           <p className="text-sm text-gray-500 mt-1">
-                            ₦
-                            {room.discounted_price_per_night ||
-                              room.price_per_night}
-                            K per night
+                            {formatPrice(
+                              room.discounted_price_per_night ||
+                                room.price_per_night,
+                              true
+                            )}{" "}
+                            per night
                           </p>
                         </div>
 

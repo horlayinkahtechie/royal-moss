@@ -1,20 +1,15 @@
 import "./globals.css";
-import Footer from "@/app/_components/Footer";
-import Navbar from "@/app/_components/Navbar";
-
 import ScrollToTop from "@/app/_components/ScrollToTop";
 import Providers from "./providers";
+import LayoutWrapper from "@/app/_components/LayoutWrapper";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
         <ScrollToTop />
-
         <Providers>
-          <Navbar />
-          {children}
-          <Footer />
+          <LayoutWrapper>{children}</LayoutWrapper>
         </Providers>
       </body>
     </html>

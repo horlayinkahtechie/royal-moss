@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "../lib/supabase";
 import {
@@ -11,7 +11,6 @@ import {
   User,
   Phone,
   ArrowRight,
-  Hotel,
   Check,
   AlertCircle,
 } from "lucide-react";
@@ -38,6 +37,96 @@ export default function SignupPage() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Add auth state listener for Google signup
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" && session?.user) {
+          const user = session.user;
+
+          // Check if this is a Google sign-in
+          const isGoogleSignIn = user.app_metadata?.provider === "google";
+
+          if (isGoogleSignIn) {
+            setIsLoading(true);
+            try {
+              // Check if user already exists in users table
+              const { data: existingUser, error: checkError } = await supabase
+                .from("users")
+                .select("id, user_role")
+                .eq("id", user.id)
+                .single();
+
+              // If user doesn't exist, create record
+              if (!existingUser) {
+                // Extract user info from Google metadata
+                const fullName =
+                  user.user_metadata?.full_name ||
+                  user.user_metadata?.name ||
+                  user.user_metadata?.email?.split("@")[0] ||
+                  "User";
+
+                const nameParts = fullName.trim().split(" ");
+                const firstName = nameParts[0] || "";
+                const lastName = nameParts.slice(1).join(" ") || "";
+
+                // Create user in database
+                const userData = {
+                  id: user.id,
+                  email: user.email,
+                  first_name: firstName,
+                  last_name: lastName,
+                  phone: user.user_metadata?.phone || "",
+                  auth_method: "google",
+                  user_role: "user", // Default to user role for Google signups
+                  status: "active",
+                  subscribed_to_newsletter: true,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  email_confirmed_at:
+                    user.email_confirmed_at || new Date().toISOString(),
+                  last_login: new Date().toISOString(),
+                };
+
+                const { error: insertError } = await supabase
+                  .from("users")
+                  .insert(userData);
+
+                if (insertError) {
+                  console.error("Error inserting Google user:", insertError);
+                  setError("Failed to create user account. Please try again.");
+                  setIsLoading(false);
+                  return;
+                }
+
+                // Success - redirect to home page
+                setSuccess("Account created successfully! Redirecting...");
+                setTimeout(() => {
+                  router.push("/");
+                }, 1500);
+              } else {
+                // User exists, just redirect based on role
+                if (existingUser.user_role === "admin") {
+                  router.push("/admin/dashboard");
+                } else {
+                  router.push("/");
+                }
+              }
+            } catch (err) {
+              console.error("Error handling Google signup:", err);
+              setError("An error occurred. Please try again.");
+              setIsLoading(false);
+            }
+          }
+        }
+      }
+    );
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -93,7 +182,6 @@ export default function SignupPage() {
               last_name: formData.lastName,
               phone: formData.phone,
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         }
       );
@@ -102,9 +190,9 @@ export default function SignupPage() {
         throw new Error(signUpError.message);
       }
 
-      // 3. Insert user data into users table
+      // 3. Insert user data into users table immediately
       if (authData.user) {
-        const { error: insertError } = await supabase.from("users").insert({
+        const userData = {
           id: authData.user.id,
           email: formData.email,
           first_name: formData.firstName,
@@ -114,21 +202,46 @@ export default function SignupPage() {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           auth_method: "email_password",
-        });
+          user_role: "user", // Default role for email signup
+          status: "active",
+          email_confirmed_at: authData.user.email_confirmed_at || null,
+        };
+
+        const { error: insertError } = await supabase
+          .from("users")
+          .insert(userData);
 
         if (insertError) {
           console.error("Error inserting user data:", insertError);
-          // Continue anyway since auth succeeded
+          // Don't throw error - auth succeeded even if users table insert fails
         }
 
-        setSuccess(
-          "Account created successfully! Please check your email to confirm your account."
-        );
+        // Check if admin (based on email domain or specific email)
+        const isAdminEmail =
+          formData.email.endsWith("@admin.com") ||
+          formData.email === "admin@example.com"; // Change to your admin email
 
-        // Redirect to dashboard after 3 seconds
-        setTimeout(() => {
-          router.push("/");
-        }, 3000);
+        if (isAdminEmail) {
+          // Update user role to admin
+          await supabase
+            .from("users")
+            .update({ user_role: "admin" })
+            .eq("id", authData.user.id);
+
+          setSuccess(
+            "Admin account created successfully! Redirecting to admin dashboard..."
+          );
+          setTimeout(() => {
+            router.push("/admin/dashboard");
+          }, 2000);
+        } else {
+          setSuccess(
+            "Account created successfully! Please check your email to confirm your account."
+          );
+          setTimeout(() => {
+            router.push("/");
+          }, 3000);
+        }
       }
     } catch (err) {
       setError(err.message || "An error occurred during sign up");
@@ -143,10 +256,10 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          // No callback URL needed - we'll handle it with auth state listener
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -158,8 +271,7 @@ export default function SignupPage() {
         throw new Error(error.message);
       }
 
-      // The user will be redirected to Google for authentication
-      // After successful auth, they'll be redirected back to /auth/callback
+      // The auth state listener will handle the rest
     } catch (err) {
       setError(err.message || "An error occurred during Google sign up");
       setIsLoading(false);
@@ -230,7 +342,7 @@ export default function SignupPage() {
               <div className="flex items-center justify-between mb-6">
                 <Link
                   href="/login"
-                  className="text-sm text-sky-600 hover:text-sky-700 transition-colors font-medium"
+                  className="text-sm cursor-pointer text-sky-600 hover:text-sky-700 transition-colors font-medium"
                 >
                   Already have an account?
                 </Link>
@@ -405,7 +517,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="w-full py-3.5 bg-sky-600 text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3.5 bg-sky-600 cursor-pointer text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isLoading}
                 >
                   <span className="flex items-center justify-center">
@@ -441,7 +553,7 @@ export default function SignupPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                      className="absolute right-4 top-1/2 cursor-pointer transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                       disabled={isLoading}
                     >
                       {showPassword ? (
@@ -485,7 +597,7 @@ export default function SignupPage() {
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                      className="absolute right-4 top-1/2 cursor-pointer transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                       disabled={isLoading}
                     >
                       {showConfirmPassword ? (
@@ -562,7 +674,7 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="w-full py-3.5 border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3.5 border-2 cursor-pointer border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading}
                   >
                     ← Back
@@ -571,7 +683,7 @@ export default function SignupPage() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3.5 bg-sky-600 text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    className="w-full py-3.5 bg-sky-600 cursor-pointer text-white rounded-xl font-semibold hover:bg-sky-700 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {isLoading ? (
                       <span className="flex items-center justify-center">
@@ -605,7 +717,7 @@ export default function SignupPage() {
                 type="button"
                 onClick={handleGoogleSignUp}
                 disabled={isLoading}
-                className="w-full py-3.5 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full py-3.5 bg-white border-2 cursor-pointer border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 <span className="flex items-center justify-center">
                   <FcGoogle className="w-5 h-5 mr-3" />
@@ -617,12 +729,12 @@ export default function SignupPage() {
               <div className="text-center pt-4">
                 <p className="text-gray-600 text-sm">
                   Already have an account?{" "}
-                  <a
+                  <Link
                     href="/login"
-                    className="text-sky-600 font-semibold hover:text-sky-700 transition-colors"
+                    className="text-sky-600 cursor-pointer font-semibold hover:text-sky-700 transition-colors"
                   >
                     Sign in here
-                  </a>
+                  </Link>
                 </p>
               </div>
             </form>

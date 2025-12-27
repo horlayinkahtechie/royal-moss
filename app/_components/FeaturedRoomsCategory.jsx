@@ -27,6 +27,119 @@ const Rooms = () => {
   const [showRightScroll, setShowRightScroll] = useState(true);
   const scrollContainerRef = useRef(null);
 
+  // Enhanced formatPrice function with Millions, Billions, and Thousands
+  const formatPrice = (price) => {
+    if (!price && price !== 0) return "0";
+
+    // Remove commas and convert to number
+    const numPrice =
+      typeof price === "string"
+        ? parseFloat(price.replace(/,/g, ""))
+        : Number(price);
+
+    if (isNaN(numPrice)) return "0"; // Return 0 if not a number
+
+    // Handle billions (1,000,000,000+)
+    if (numPrice >= 1000000000) {
+      const inBillions = numPrice / 1000000000;
+      if (Number.isInteger(inBillions)) {
+        return `${inBillions}`;
+      } else {
+        return `${inBillions.toFixed(1)}`;
+      }
+    }
+
+    // Handle millions (1,000,000 - 999,999,999)
+    if (numPrice >= 1000000) {
+      const inMillions = numPrice / 1000000;
+      if (Number.isInteger(inMillions)) {
+        return `${inMillions}`;
+      } else {
+        return `${inMillions.toFixed(1)}`;
+      }
+    }
+
+    // Handle thousands (1,000 - 999,999)
+    if (numPrice >= 1000) {
+      const inThousands = numPrice / 1000;
+      if (Number.isInteger(inThousands)) {
+        return `${inThousands}`;
+      } else {
+        return `${inThousands.toFixed(1)}`;
+      }
+    }
+
+    // If less than 1,000, return as is
+    return numPrice.toString();
+  };
+
+  // Helper function to determine price suffix
+  const getPriceSuffix = (price) => {
+    if (!price && price !== 0) return "";
+
+    const numPrice =
+      typeof price === "string"
+        ? parseFloat(price.replace(/,/g, ""))
+        : Number(price);
+
+    if (isNaN(numPrice)) return "";
+
+    if (numPrice >= 1000000000) return "B";
+    if (numPrice >= 1000000) return "M";
+    if (numPrice >= 1000) return "K";
+    return "";
+  };
+
+  // Format price with proper suffix for display
+  const formatPriceForDisplay = (price, prefix = "₦") => {
+    const formattedValue = formatPrice(price);
+    const suffix = getPriceSuffix(price);
+
+    // If there's no suffix and price is less than 1000, just return the number
+    if (!suffix) {
+      return `${prefix}${formattedValue}`;
+    }
+
+    return `${prefix}${formattedValue}${suffix}`;
+  };
+
+  // Format price range for display
+  const formatPriceRangeForDisplay = (minPrice, maxPrice, prefix = "₦") => {
+    if (minPrice === maxPrice) {
+      return `${formatPriceForDisplay(minPrice, prefix)}`;
+    }
+
+    const minFormatted = formatPrice(minPrice);
+    const maxFormatted = formatPrice(maxPrice);
+    const minSuffix = getPriceSuffix(minPrice);
+    const maxSuffix = getPriceSuffix(maxPrice);
+
+    // If both have the same suffix, show it only once at the end
+    if (minSuffix === maxSuffix && minSuffix) {
+      return `${prefix}${minFormatted}-${maxFormatted}${minSuffix}`;
+    }
+
+    // Different suffixes, show both
+    return `${formatPriceForDisplay(
+      minPrice,
+      prefix
+    )} - ${formatPriceForDisplay(maxPrice, prefix)}`;
+  };
+
+  // Format price with commas for display if needed (backup function)
+  const formatPriceWithCommas = (price) => {
+    if (!price && price !== 0) return "N/A";
+
+    const numPrice =
+      typeof price === "string"
+        ? parseFloat(price.replace(/,/g, ""))
+        : Number(price);
+
+    if (isNaN(numPrice)) return price;
+
+    return `₦${numPrice.toLocaleString("en-US")}`;
+  };
+
   // Amenity icons mapping
   const amenityIcons = {
     "Free WiFi": Wifi,
@@ -96,8 +209,9 @@ const Rooms = () => {
       const { data: roomsData, error: fetchError } = await supabase
         .from("rooms")
         .select(
-          "room_category, price_per_night, discounted_price_per_night, amenities, no_of_guest, room_dismesion, user_ratings, room_image, room_description, room_availability, room_number"
+          "room_category, price_per_night, discounted_price_per_night, amenities, no_of_guest, room_dimension, user_ratings, room_image, room_description, room_availability, room_number"
         )
+        .eq("room_availability", true)
         .order("price_per_night", { ascending: true });
 
       if (fetchError) {
@@ -173,7 +287,7 @@ const Rooms = () => {
             avgRating: room.user_ratings || 4.5,
             maxGuests: room.no_of_guest,
             minGuests: room.no_of_guest,
-            size: room.room_dismesion,
+            size: room.room_dimension,
             images: images,
             amenities: amenities.slice(0, 6),
             availableRooms: availableRooms,
@@ -276,11 +390,11 @@ const Rooms = () => {
         ...category,
         // Format title nicely
         displayTitle: category.title,
-        // Format price display
-        priceDisplay:
-          category.minPrice === category.maxPrice
-            ? `₦${category.minPrice}`
-            : `₦${category.minPrice} - ₦${category.maxPrice}`,
+        // Format price display with proper suffixes
+        priceDisplay: formatPriceRangeForDisplay(
+          category.minPrice,
+          category.maxPrice
+        ),
         // Format guests display
         guestsDisplay:
           category.minGuests === category.maxGuests
@@ -304,8 +418,7 @@ const Rooms = () => {
     } catch (err) {
       console.error("Error fetching room categories:", err);
       setError("Failed to load room categories");
-      // Fallback to default categories if database fails
-      setRoomCategories(getDefaultCategories());
+      setRoomCategories([]);
     } finally {
       setIsLoading(false);
     }
@@ -516,7 +629,7 @@ const Rooms = () => {
                   {/* Price Tag */}
                   <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl z-10">
                     <div className="text-2xl font-bold text-gray-900">
-                      {category.priceDisplay}K
+                      {category.priceDisplay}
                     </div>
                     <div className="text-xs text-gray-600">
                       starting per night

@@ -29,7 +29,20 @@ import {
   Mail,
   Check,
   Eye,
+  DumbbellIcon,
+  WindIcon,
+  CarIcon,
+  DogIcon,
+  TvIcon,
+  Home,
+  MapPin,
+  Fan,
+  BedIcon,
 } from "lucide-react";
+import { BiWater } from "react-icons/bi";
+import { FaCity, FaDigitalOcean } from "react-icons/fa";
+import { MdIron } from "react-icons/md";
+import { GrLounge } from "react-icons/gr";
 
 export default function Availability() {
   const searchParams = useSearchParams();
@@ -65,29 +78,96 @@ export default function Availability() {
 
   const amenityIcons = {
     "Free WiFi": Wifi,
-    "Breakfast Included": Coffee,
-    "Sea View": Maximize2,
-    "King Bed": Users,
-    "Executive Lounge": Users,
-    "Butler Service": Users,
+    "Wi-Fi": Wifi,
+    TV: TvIcon,
+    "Mini Bar": Coffee,
+    Balcony: Home,
     Jacuzzi: Maximize2,
-    "City View": Maximize2,
+    Safe: Shield,
+    "Room Service": Coffee,
+    Breakfast: Coffee,
+    "Pool Access": BiWater,
+    "Gym Access": DumbbellIcon,
+    "Spa Access": WindIcon,
+    Parking: CarIcon,
+    "Pet Friendly": DogIcon,
+    "Ocean View": FaDigitalOcean,
+    "Breakfast Included": Coffee,
+    "Sea View": MapPin,
+    "King Size Bed": BedIcon,
+    "Executive Lounge": GrLounge,
+    "Butler Service": Users,
+    "City View": FaCity,
     "Private Pool": Maximize2,
-    "Gourmet Kitchen": Utensils,
-    "Cinema Room": Tv,
+    "Gourmet Kitchen": Shield,
+    "Cinema Room": Shield,
     "24/7 Butler": Users,
     "Kids Club Access": Users,
-    "Connected Rooms": Users,
-    "Game Console": Tv,
+    "Connected Rooms": Building,
+    "Game Console": Shield,
     "Family Amenities": Users,
     "Air Conditioning": Wind,
-    "Room Service": Utensils,
+    "Room Service": Shield,
     Minibar: Coffee,
-    "Smart TV": Tv,
+    "Smart TV": Shield,
     "Coffee Maker": Coffee,
     Safe: Shield,
     "Hair Dryer": Wind,
-    Iron: Utensils,
+    "Pressing Iron": MdIron,
+    "Standing Fan": Fan,
+  };
+
+  const formatPrice = (amount, includeK = false) => {
+    if (amount === null || amount === undefined) return "₦0";
+
+    // Convert to number if it's a string
+    const numericAmount =
+      typeof amount === "string"
+        ? parseFloat(amount.replace(/[^0-9.-]+/g, ""))
+        : Number(amount);
+
+    if (isNaN(numericAmount)) return "₦0";
+
+    if (Math.abs(numericAmount) >= 1000000000) {
+      return `₦${(numericAmount / 1000000000).toFixed(1).replace(/\.0$/, "")}B`;
+    } else if (Math.abs(numericAmount) >= 1000000) {
+      return `₦${(numericAmount / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
+    } else if (Math.abs(numericAmount) >= 1000) {
+      return `₦${(numericAmount / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+    } else {
+      return `₦${numericAmount}${includeK && numericAmount !== 0 ? "K" : ""}`;
+    }
+  };
+
+  const extractNumericPrice = (priceValue) => {
+    if (priceValue === null || priceValue === undefined) return 0;
+
+    // If it's already a number, return it
+    if (typeof priceValue === "number") return priceValue;
+
+    // If it's a string, parse it
+    if (typeof priceValue === "string") {
+      // Remove currency symbol and any commas
+      let cleanValue = priceValue.replace(/[₦,]/g, "").trim();
+
+      // Check for K, M, B suffixes
+      if (cleanValue.endsWith("B") || cleanValue.endsWith("b")) {
+        const number = parseFloat(cleanValue.slice(0, -1));
+        return number * 1000000000;
+      } else if (cleanValue.endsWith("M") || cleanValue.endsWith("m")) {
+        const number = parseFloat(cleanValue.slice(0, -1));
+        return number * 1000000;
+      } else if (cleanValue.endsWith("K") || cleanValue.endsWith("k")) {
+        const number = parseFloat(cleanValue.slice(0, -1));
+        return number * 1000;
+      } else {
+        // Just a plain number
+        return parseFloat(cleanValue) || 0;
+      }
+    }
+
+    // If it's something else, try to convert to number
+    return Number(priceValue) || 0;
   };
 
   useEffect(() => {
@@ -115,7 +195,10 @@ export default function Availability() {
     setError(null);
 
     try {
-      let query = supabase.from("rooms").select("*");
+      let query = supabase
+        .from("rooms")
+        .select("*")
+        .eq("room_availability", true);
 
       if (roomType) {
         query = query.eq("room_category", roomType);
@@ -268,16 +351,17 @@ export default function Availability() {
     setFilteredRooms(filtered);
   };
 
-  const handleBookNow = (roomId, isAvailable, roomData = null) => {
-    if (!isAvailable) return;
-
+  const handleBookNow = (roomId, roomData = null) => {
     if (roomData) {
       const roomImage = getRoomImage(roomData.images);
 
+      // Use the numeric price directly
+      const pricePerNight = roomData.discountedPrice || roomData.price;
+
       router.push(
-        `/book?roomId=${roomId}&type=${roomType}&price=${
-          roomData.price
-        }&roomImage=${
+        `/book?roomId=${roomId}&type=${
+          roomData.roomCategory
+        }&price=${pricePerNight}&roomImage=${
           roomImage ? encodeURIComponent(roomImage) : "No room image"
         }&title=${encodeURIComponent(roomData.title)}`
       );
@@ -285,10 +369,11 @@ export default function Availability() {
       const room = filteredRooms.find((r) => r.id === roomId);
       if (room) {
         const roomImage = getRoomImage(room.images);
+        const pricePerNight = room.discountedPrice || room.price;
         router.push(
-          `/book?roomId=${roomId}&type=${roomType}&price=${
-            room.price
-          }&roomImage=${
+          `/book?roomId=${roomId}&type=${
+            room.roomCategory
+          }&price=${pricePerNight}&roomImage=${
             roomImage ? encodeURIComponent(roomImage) : "No room image"
           }&title=${encodeURIComponent(room.title)}`
         );
@@ -555,10 +640,10 @@ export default function Availability() {
                               {room.availability ? "AVAILABLE" : "OCCUPIED"}
                             </div>
 
-                            {/* Discount Badge */}
                             {room.discountedPrice && (
-                              <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
-                                SAVE ₦{room.price - room.discountedPrice}K
+                              <div className="absolute bottom-3 left-3 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                SAVE{" "}
+                                {formatPrice(room.price - room.discountedPrice)}
                               </div>
                             )}
                           </div>
@@ -626,45 +711,26 @@ export default function Availability() {
                                 {room.discountedPrice ? (
                                   <>
                                     <span className="text-2xl font-bold text-gray-900">
-                                      ₦{room.discountedPrice}K
+                                      {formatPrice(room.discountedPrice)}
                                     </span>
                                     <span className="ml-2 text-lg text-gray-500 line-through">
-                                      ₦{room.price}K
-                                    </span>
-                                    <span className="ml-2 text-sm font-bold text-emerald-600">
-                                      (
-                                      {Math.round(
-                                        (1 -
-                                          room.discountedPrice / room.price) *
-                                          100
-                                      )}
-                                      % off)
+                                      {formatPrice(room.price)}
                                     </span>
                                   </>
                                 ) : (
                                   <span className="text-2xl font-bold text-gray-900">
-                                    ₦{room.price}K
+                                    {formatPrice(room.price)}
                                   </span>
                                 )}
                                 <span className="ml-2 text-sm text-gray-600">
                                   /night
                                 </span>
                               </div>
-                              <div className="flex items-center text-sm text-gray-500 mt-1">
-                                <Clock className="w-4 h-4 mr-1" />
-                                Updated just now
-                              </div>
                             </div>
 
                             <div className="space-x-3">
                               <button
-                                onClick={() =>
-                                  handleBookNow(
-                                    room.id,
-                                    room.availability,
-                                    room
-                                  )
-                                }
+                                onClick={() => handleBookNow(room.id, room)}
                                 disabled={!room.availability}
                                 className={`px-6 py-3 cursor-pointer rounded-xl font-semibold transition-all duration-300 ${
                                   room.availability
@@ -903,10 +969,10 @@ export default function Availability() {
                           {selectedRoom.discountedPrice ? (
                             <>
                               <span className="text-3xl font-bold text-gray-900">
-                                ₦{selectedRoom.discountedPrice}K
+                                {formatPrice(selectedRoom.discountedPrice)}
                               </span>
                               <span className="ml-2 text-lg text-gray-500 line-through">
-                                ₦{selectedRoom.price}K
+                                {formatPrice(selectedRoom.price)}
                               </span>
                               <span className="ml-2 text-sm font-bold text-emerald-600">
                                 (
@@ -921,7 +987,7 @@ export default function Availability() {
                             </>
                           ) : (
                             <span className="text-3xl font-bold text-gray-900">
-                              ₦{selectedRoom.price}K
+                              {formatPrice(selectedRoom.price)}
                             </span>
                           )}
                           <span className="ml-2 text-gray-600">per night</span>
@@ -931,11 +997,7 @@ export default function Availability() {
 
                     <button
                       onClick={() =>
-                        handleBookNow(
-                          selectedRoom.id,
-                          selectedRoom.availability,
-                          selectedRoom
-                        )
+                        handleBookNow(selectedRoom.id, selectedRoom)
                       }
                       disabled={!selectedRoom.availability}
                       className={`w-full py-3 rounded-xl cursor-pointer font-semibold transition-all duration-300 ${

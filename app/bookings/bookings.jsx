@@ -390,38 +390,124 @@ const BookingsPage = () => {
 
   const handlePrintInvoice = (booking) => {
     const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
+    const invoiceContent = `
       <html>
         <head>
-          <title>Invoice - ${booking.booking_reference}</title>
+          <title>Invoice - ${booking.booking_id}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            .invoice-details { margin: 20px 0; }
-            .invoice-details p { margin: 5px 0; }
+            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+            .invoice-header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #333; }
+            .invoice-details { margin-bottom: 30px; }
+            .invoice-details h3 { color: #333; margin-bottom: 15px; }
+            .invoice-items { width: 100%; border-collapse: collapse; margin: 30px 0; }
+            .invoice-items th { background-color: #f5f5f5; padding: 12px; text-align: left; border: 1px solid #ddd; }
+            .invoice-items td { padding: 12px; border: 1px solid #ddd; }
+            .total-row { font-weight: bold; background-color: #f9f9f9; }
+            .total-amount { font-size: 20px; color: #10B981; }
+            .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
           </style>
         </head>
         <body>
-          <h1>Royal Moss Hotel - Invoice</h1>
+          <div class="invoice-header">
+            <h1>Royal Moss</h1>
+            <h2>${booking.booking_id}</h2>
+            <p>Date: ${format(new Date(), "MMMM dd, yyyy")}</p>
+          </div>
+          
           <div class="invoice-details">
-            <p><strong>Booking Reference:</strong> ${
-              booking.booking_reference
+            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+              <div>
+                <h3>Hotel Information</h3>
+                <p>Luxury Hotel & Resort</p>
+                <p>123 Ocean View Drive</p>
+                <p>Miami Beach, FL 33139</p>
+                <p>Phone: (305) 555-0123</p>
+              </div>
+              <div>
+                <h3>Guest Information</h3>
+                <p><strong>${booking.guest_name}</strong></p>
+                <p>${booking.guest_email}</p>
+                <p>${booking.guest_phone || "N/A"}</p>
+              </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between;">
+              <div>
+                <h3>Booking Details</h3>
+                <p><strong>Check-in:</strong> ${format(
+                  new Date(booking.check_in_date),
+                  "MMMM dd, yyyy"
+                )}</p>
+                <p><strong>Check-out:</strong> ${format(
+                  new Date(booking.check_out_date),
+                  "MMMM dd, yyyy"
+                )}</p>
+                <p><strong>Nights:</strong> ${booking.no_of_nights}</p>
+              </div>
+              <div>
+                <h3>Room Details</h3>
+                <p><strong>Room:</strong> ${booking.room_number}</p>
+                <p><strong>Type:</strong> ${booking.room_category}</p>
+                <p><strong>Guests:</strong> ${booking.no_of_guests}</p>
+              </div>
+            </div>
+          </div>
+
+          <table class="invoice-items">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Rate</th>
+                <th>Nights</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${booking.room_category} - Room ${booking.room_number}</td>
+                <td>$${
+                  booking.price_per_night ||
+                  booking.total_amount / booking.no_of_nights
+                }</td>
+                <td>${booking.no_of_nights}</td>
+                <td>$${booking.total_amount}</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="3" style="text-align: right;"><strong>Total Amount:</strong></td>
+                <td class="total-amount">$${booking.total_amount}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="invoice-details">
+            <h3>Payment Information</h3>
+            <p><strong>Status:</strong> ${booking.payment_status}</p>
+            <p><strong>Method:</strong> ${booking.payment_method || "N/A"}</p>
+            <p><strong>Reference:</strong> ${
+              booking.payment_reference || "N/A"
             }</p>
-            <p><strong>Guest Name:</strong> ${booking.guest_name}</p>
-            <p><strong>Room:</strong> ${booking.room_title}</p>
-            <p><strong>Dates:</strong> ${booking.formattedDates}</p>
-            <p><strong>Nights:</strong> ${booking.nights}</p>
-            <p><strong>Total Amount:</strong> ${booking.currency} ${
-      booking.total_amount
-    }</p>
-            <p><strong>Payment Status:</strong> ${booking.payment_status}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            ${
+              booking.special_requests
+                ? `<p><strong>Special Requests:</strong> ${booking.special_requests}</p>`
+                : ""
+            }
+          </div>
+
+          <div class="footer">
+            <p>Thank you for choosing our Royal Moss!</p>
+            <p>For any questions, please contact our customer service at (305) 555-0123</p>
+            <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">Print Invoice</button>
           </div>
         </body>
       </html>
-    `);
+    `;
+
+    printWindow.document.write(invoiceContent);
     printWindow.document.close();
-    printWindow.print();
   };
 
   const handleRefresh = () => {

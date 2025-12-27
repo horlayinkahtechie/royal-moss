@@ -23,7 +23,19 @@ import {
   Building,
   Eye,
   Calendar,
+  TvIcon,
+  Home,
+  DumbbellIcon,
+  WindIcon,
+  CarIcon,
+  DogIcon,
+  BedIcon,
+  Fan,
 } from "lucide-react";
+import { BiWater } from "react-icons/bi";
+import { FaCity, FaDigitalOcean } from "react-icons/fa";
+import { GrLounge } from "react-icons/gr";
+import { MdIron } from "react-icons/md";
 
 export default function AllRooms() {
   const router = useRouter();
@@ -54,12 +66,25 @@ export default function AllRooms() {
 
   const allAmenities = [
     "Free WiFi",
+    "Wi-Fi",
+    "TV",
+    "Mini Bar",
+    "Balcony",
+    "Jacuzzi",
+    "Safe",
+    "Room Service",
+    "Breakfast",
+    "Pool Access",
+    "Gym Access",
+    "Spa Access",
+    "Parking",
+    "Pet Friendly",
+    "Ocean View",
     "Breakfast Included",
     "Sea View",
-    "King Bed",
+    "King Size Bed",
     "Executive Lounge",
     "Butler Service",
-    "Jacuzzi",
     "City View",
     "Private Pool",
     "Gourmet Kitchen",
@@ -76,18 +101,32 @@ export default function AllRooms() {
     "Coffee Maker",
     "Safe",
     "Hair Dryer",
-    "Iron",
+    "Pressing Iron",
+    "Standing Fan",
   ];
 
   const amenityIcons = {
     "Free WiFi": Wifi,
+    "Wi-Fi": Wifi,
+    TV: TvIcon,
+    "Mini Bar": Coffee,
+    Balcony: Home,
+    Jacuzzi: Maximize2,
+    Safe: Shield,
+    "Room Service": Coffee,
+    Breakfast: Coffee,
+    "Pool Access": BiWater,
+    "Gym Access": DumbbellIcon,
+    "Spa Access": WindIcon,
+    Parking: CarIcon,
+    "Pet Friendly": DogIcon,
+    "Ocean View": FaDigitalOcean,
     "Breakfast Included": Coffee,
     "Sea View": MapPin,
-    "King Bed": Users,
-    "Executive Lounge": Building,
+    "King Size Bed": BedIcon,
+    "Executive Lounge": GrLounge,
     "Butler Service": Users,
-    Jacuzzi: Maximize2,
-    "City View": MapPin,
+    "City View": FaCity,
     "Private Pool": Maximize2,
     "Gourmet Kitchen": Shield,
     "Cinema Room": Shield,
@@ -103,7 +142,61 @@ export default function AllRooms() {
     "Coffee Maker": Coffee,
     Safe: Shield,
     "Hair Dryer": Wind,
-    Iron: Shield,
+    "Pressing Iron": MdIron,
+    "Standing Fan": Fan,
+  };
+
+  const formatPrice = (amount, includeK = false) => {
+    if (amount === null || amount === undefined) return "₦0";
+
+    // Convert to number if it's a string
+    const numericAmount =
+      typeof amount === "string"
+        ? parseFloat(amount.replace(/[^0-9.-]+/g, ""))
+        : Number(amount);
+
+    if (isNaN(numericAmount)) return "₦0";
+
+    if (Math.abs(numericAmount) >= 1000000000) {
+      return `₦${(numericAmount / 1000000000).toFixed(1).replace(/\.0$/, "")}B`;
+    } else if (Math.abs(numericAmount) >= 1000000) {
+      return `₦${(numericAmount / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
+    } else if (Math.abs(numericAmount) >= 1000) {
+      return `₦${(numericAmount / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+    } else {
+      return `₦${numericAmount}${includeK && numericAmount !== 0 ? "K" : ""}`;
+    }
+  };
+
+  const extractNumericPrice = (priceValue) => {
+    if (priceValue === null || priceValue === undefined) return 0;
+
+    // If it's already a number, return it
+    if (typeof priceValue === "number") return priceValue;
+
+    // If it's a string, parse it
+    if (typeof priceValue === "string") {
+      // Remove currency symbol and any commas
+      let cleanValue = priceValue.replace(/[₦,]/g, "").trim();
+
+      // Check for K, M, B suffixes
+      if (cleanValue.endsWith("B") || cleanValue.endsWith("b")) {
+        const number = parseFloat(cleanValue.slice(0, -1));
+        return number * 1000000000;
+      } else if (cleanValue.endsWith("M") || cleanValue.endsWith("m")) {
+        const number = parseFloat(cleanValue.slice(0, -1));
+        return number * 1000000;
+      } else if (cleanValue.endsWith("K") || cleanValue.endsWith("k")) {
+        const number = parseFloat(cleanValue.slice(0, -1));
+        return number * 1000;
+      } else {
+        // Just a plain number
+        return parseFloat(cleanValue) || 0;
+      }
+    }
+
+    // If it's something else, try to convert to number
+    return Number(priceValue) || 0;
   };
 
   useEffect(() => {
@@ -123,6 +216,7 @@ export default function AllRooms() {
       const { data, error: fetchError } = await supabase
         .from("rooms")
         .select("*")
+        .eq("room_availability", true)
         .order("price_per_night", { ascending: true });
 
       if (fetchError) {
@@ -136,36 +230,48 @@ export default function AllRooms() {
       }
 
       // Format room data
-      const formattedRooms = data.map((room) => ({
-        id: room.id,
-        title: room.room_category
-          .split("-")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" "),
-        description: room.room_description,
-        price: room.price_per_night,
-        discountedPrice: room.discounted_price_per_night,
-        rating: room.user_ratings || 4.5,
-        guests: room.no_of_guest,
-        size: room.room_dismesion,
-        amenities: Array.isArray(room.amenities)
-          ? room.amenities
-          : room.amenities
-          ? JSON.parse(room.amenities)
-          : [],
-        images: Array.isArray(room.room_image)
-          ? room.room_image
-          : room.room_image
-          ? JSON.parse(room.room_image)
-          : [],
-        createdAt: room.created_at,
-        roomNumber: room.room_number || `Room ${room.id.slice(0, 4)}`,
-        floor: room.floor || "3rd Floor",
-        view: room.view || "Ocean View",
-        bedType: room.bed_type || "King Bed",
-        roomCategory: room.room_category,
-        categoryName: roomCategories[room.room_category] || room.room_category,
-      }));
+      const formattedRooms = data.map((room) => {
+        // Extract numeric prices
+        const pricePerNight = extractNumericPrice(room.price_per_night);
+        const discountedPrice = room.discounted_price_per_night
+          ? extractNumericPrice(room.discounted_price_per_night)
+          : null;
+
+        return {
+          id: room.id,
+          title: room.room_category
+            .split("-")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" "),
+          description: room.room_description,
+          price: pricePerNight, // Store numeric price
+          discountedPrice: discountedPrice, // Store numeric discounted price
+          rating: room.user_ratings || 4.5,
+          guests: room.no_of_guest,
+          size: room.room_dismesion,
+          amenities: Array.isArray(room.amenities)
+            ? room.amenities
+            : room.amenities
+            ? JSON.parse(room.amenities)
+            : [],
+          images: Array.isArray(room.room_image)
+            ? room.room_image
+            : room.room_image
+            ? JSON.parse(room.room_image)
+            : [],
+          createdAt: room.created_at,
+          roomNumber: room.room_number || `Room ${room.id.slice(0, 4)}`,
+          floor: room.floor || "3rd Floor",
+          view: room.view || "Ocean View",
+          bedType: room.bed_type || "King Bed",
+          roomCategory: room.room_category,
+          categoryName:
+            roomCategories[room.room_category] || room.room_category,
+          // Keep original string values for display if needed
+          originalPrice: room.price_per_night,
+          originalDiscountedPrice: room.discounted_price_per_night,
+        };
+      });
 
       setRooms(formattedRooms);
 
@@ -268,10 +374,14 @@ export default function AllRooms() {
   const handleBookNow = (roomId, roomData = null) => {
     if (roomData) {
       const roomImage = getRoomImage(roomData.images);
+
+      // Use the numeric price directly
+      const pricePerNight = roomData.discountedPrice || roomData.price;
+
       router.push(
-        `/book?roomId=${roomId}&type=${roomData.roomCategory}&price=${
-          roomData.price
-        }&roomImage=${
+        `/book?roomId=${roomId}&type=${
+          roomData.roomCategory
+        }&price=${pricePerNight}&roomImage=${
           roomImage ? encodeURIComponent(roomImage) : "No room image"
         }&title=${encodeURIComponent(roomData.title)}`
       );
@@ -279,10 +389,11 @@ export default function AllRooms() {
       const room = filteredRooms.find((r) => r.id === roomId);
       if (room) {
         const roomImage = getRoomImage(room.images);
+        const pricePerNight = room.discountedPrice || room.price;
         router.push(
-          `/book?roomId=${roomId}&type=${room.roomCategory}&price=${
-            room.price
-          }&roomImage=${
+          `/book?roomId=${roomId}&type=${
+            room.roomCategory
+          }&price=${pricePerNight}&roomImage=${
             roomImage ? encodeURIComponent(roomImage) : "No room image"
           }&title=${encodeURIComponent(room.title)}`
         );
@@ -511,8 +622,8 @@ export default function AllRooms() {
               {/* Price Range */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price Range: ${filters.priceRange[0]} - $
-                  {filters.priceRange[1]}
+                  Price Range: {formatPrice(filters.priceRange[0])} -{" "}
+                  {formatPrice(filters.priceRange[1])}
                 </label>
                 <div className="flex items-center space-x-4">
                   <input
@@ -712,10 +823,9 @@ export default function AllRooms() {
                         </div>
                       </div>
 
-                      {/* Discount Badge */}
                       {room.discountedPrice && (
                         <div className="absolute bottom-3 left-3 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
-                          SAVE ${room.price - room.discountedPrice}
+                          SAVE {formatPrice(room.price - room.discountedPrice)}
                         </div>
                       )}
                     </div>
@@ -790,15 +900,15 @@ export default function AllRooms() {
                             {room.discountedPrice ? (
                               <>
                                 <span className="text-xl font-bold text-gray-900">
-                                  ${room.discountedPrice}
+                                  {formatPrice(room.discountedPrice)}
                                 </span>
                                 <span className="ml-2 text-sm text-gray-500 line-through">
-                                  ${room.price}
+                                  {formatPrice(room.price)}
                                 </span>
                               </>
                             ) : (
                               <span className="text-xl font-bold text-gray-900">
-                                ${room.price}
+                                {formatPrice(room.price)}
                               </span>
                             )}
                             <span className="ml-1 text-sm text-gray-600">
@@ -961,15 +1071,15 @@ export default function AllRooms() {
                             {selectedRoom.discountedPrice ? (
                               <>
                                 <span className="text-2xl font-bold text-gray-900">
-                                  ${selectedRoom.discountedPrice}
+                                  {formatPrice(selectedRoom.discountedPrice)}
                                 </span>
                                 <span className="ml-2 text-lg text-gray-500 line-through">
-                                  ${selectedRoom.price}
+                                  {formatPrice(selectedRoom.price)}
                                 </span>
                               </>
                             ) : (
                               <span className="text-2xl font-bold text-gray-900">
-                                ${selectedRoom.price}
+                                {formatPrice(selectedRoom.price)}
                               </span>
                             )}
                           </div>

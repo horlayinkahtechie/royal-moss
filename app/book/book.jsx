@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import supabase from "../lib/supabase";
-import { usePaystackPayment } from "../hooks/usePaystackPayment";
 import Image from "next/image";
 import {
   Calendar,
@@ -22,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  LogIn,
 } from "lucide-react";
 import {
   format,
@@ -37,14 +37,64 @@ import {
   parseISO,
 } from "date-fns";
 
+// Utility function to format price with K, M, B suffixes
+const formatPrice = (amount, includeK = false) => {
+  if (amount === null || amount === undefined) return "₦0";
+
+  // Convert to number if it's a string
+  const numericAmount =
+    typeof amount === "string"
+      ? parseFloat(amount.replace(/[^0-9.-]+/g, ""))
+      : Number(amount);
+
+  if (isNaN(numericAmount)) return "₦0";
+
+  if (Math.abs(numericAmount) >= 1000000000) {
+    return `₦${(numericAmount / 1000000000).toFixed(1).replace(/\.0$/, "")}B`;
+  } else if (Math.abs(numericAmount) >= 1000000) {
+    return `₦${(numericAmount / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
+  } else if (Math.abs(numericAmount) >= 1000) {
+    return `₦${(numericAmount / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+  } else {
+    return `₦${numericAmount}${includeK && numericAmount !== 0 ? "K" : ""}`;
+  }
+};
+
+// Helper function to extract numeric value from price (handles both formatted strings and numbers)
+const extractNumericPrice = (priceValue) => {
+  if (priceValue === null || priceValue === undefined) return 0;
+
+  // If it's already a number, return it
+  if (typeof priceValue === "number") return priceValue;
+
+  // If it's a string, parse it
+  if (typeof priceValue === "string") {
+    // Remove currency symbol and any commas
+    let cleanValue = priceValue.replace(/[₦,]/g, "").trim();
+
+    // Check for K, M, B suffixes
+    if (cleanValue.endsWith("B") || cleanValue.endsWith("b")) {
+      const number = parseFloat(cleanValue.slice(0, -1));
+      return number * 1000000000;
+    } else if (cleanValue.endsWith("M") || cleanValue.endsWith("m")) {
+      const number = parseFloat(cleanValue.slice(0, -1));
+      return number * 1000000;
+    } else if (cleanValue.endsWith("K") || cleanValue.endsWith("k")) {
+      const number = parseFloat(cleanValue.slice(0, -1));
+      return number * 1000;
+    } else {
+      // Just a plain number
+      return parseFloat(cleanValue) || 0;
+    }
+  }
+
+  // If it's something else, try to convert to number
+  return Number(priceValue) || 0;
+};
+
 export default function Book() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const {
-    processPayment,
-    isProcessing: isPaymentProcessing,
-    paymentError,
-  } = usePaystackPayment();
 
   const roomId = searchParams.get("roomId");
   const roomType = searchParams.get("type");
@@ -54,8 +104,10 @@ export default function Book() {
 
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [room, setRoom] = useState(null);
+
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingReference, setBookingReference] = useState("");
   const [existingBookings, setExistingBookings] = useState([]);
@@ -66,6 +118,7 @@ export default function Book() {
   });
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [paymentStatus, setPaymentStatus] = useState("pending");
+  const [paymentError, setPaymentError] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -85,6 +138,57 @@ export default function Book() {
     totalAmount: 0,
   });
 
+  // PayStack Script Loader
+  const [paystackLoaded, setPaystackLoaded] = useState(false);
+  const paystackScriptRef = useRef(null);
+
+  useEffect(() => {
+    // Load PayStack script
+    const loadPaystackScript = () => {
+      // Check if script is already loaded
+      if (
+        document.querySelector(
+          'script[src="https://js.paystack.co/v1/inline.js"]'
+        )
+      ) {
+        setPaystackLoaded(true);
+        console.log("PayStack script already loaded");
+        return;
+      }
+
+      paystackScriptRef.current = document.createElement("script");
+      paystackScriptRef.current.src = "https://js.paystack.co/v1/inline.js";
+      paystackScriptRef.current.async = true;
+
+      paystackScriptRef.current.onload = () => {
+        console.log("PayStack script loaded successfully");
+        setPaystackLoaded(true);
+      };
+
+      paystackScriptRef.current.onerror = () => {
+        console.error("Failed to load PayStack script");
+        setPaymentError(
+          "Payment service is currently unavailable. Please try again later."
+        );
+        setPaystackLoaded(false);
+      };
+
+      document.body.appendChild(paystackScriptRef.current);
+    };
+
+    loadPaystackScript();
+
+    return () => {
+      // Clean up script on unmount
+      if (
+        paystackScriptRef.current &&
+        document.body.contains(paystackScriptRef.current)
+      ) {
+        document.body.removeChild(paystackScriptRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (bookingSuccess) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -94,20 +198,31 @@ export default function Book() {
   useEffect(() => {
     const getUser = async () => {
       try {
+        setIsAuthLoading(true);
         const {
           data: { user },
+          error,
         } = await supabase.auth.getUser();
-        setUser(user);
 
-        if (user) {
-          setFormData((prev) => ({
-            ...prev,
-            guestEmail: user.email || "",
-            guestName: user.user_metadata?.full_name || "",
-          }));
+        if (error) {
+          console.error("Error fetching user:", error);
+          setUser(null);
+        } else {
+          setUser(user);
+
+          if (user) {
+            setFormData((prev) => ({
+              ...prev,
+              guestEmail: user.email || "",
+              guestName: user.user_metadata?.full_name || "",
+            }));
+          }
         }
       } catch (error) {
         console.error("Error fetching user:", error);
+        setUser(null);
+      } finally {
+        setIsAuthLoading(false);
       }
     };
 
@@ -181,8 +296,10 @@ export default function Book() {
 
       const diffTime = Math.abs(checkOut - checkIn);
       const noOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      const price = room?.price || parseFloat(roomPrice) || 0;
-      const totalAmount = noOfNights * price;
+
+      // Extract numeric price
+      const pricePerNight = extractNumericPrice(roomPrice);
+      const totalAmount = noOfNights * pricePerNight;
 
       setCalculatedValues({
         noOfNights,
@@ -395,8 +512,102 @@ export default function Book() {
     }
   };
 
+  // Handle user authentication
+  const handleLogin = async () => {
+    try {
+      // You can redirect to login page or show login modal
+      router.push("/login?redirect=/book");
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Please login to continue with booking");
+    }
+  };
+
+  // PayStack Payment Handler
+  const handlePaystackPayment = async (
+    bookingFormData,
+    totalAmount,
+    bookingRef
+  ) => {
+    return new Promise((resolve, reject) => {
+      // Wait a bit more to ensure PayStack is fully loaded
+      setTimeout(() => {
+        if (
+          !window.PaystackPop ||
+          typeof window.PaystackPop.setup !== "function"
+        ) {
+          console.error("PayStack not available or not properly loaded");
+          reject(
+            new Error(
+              "PayStack payment service is not available. Please refresh and try again."
+            )
+          );
+          return;
+        }
+
+        console.log("Setting up PayStack payment with ref:", bookingRef);
+
+        try {
+          const handler = window.PaystackPop.setup({
+            key:
+              process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
+              "pk_test_YOUR_TEST_KEY", // Make sure this is set in your .env.local
+            email: formData.guestEmail,
+            amount: totalAmount * 100, // Convert to kobo
+            currency: "NGN",
+            ref: bookingRef,
+            metadata: {
+              booking_id: bookingRef,
+              guest_name: formData.guestName,
+              room_type: roomType,
+              check_in_date: formData.checkInDate,
+              check_out_date: formData.checkOutDate,
+              no_of_nights: calculatedValues.noOfNights,
+              no_of_guests: formData.noOfGuests,
+            },
+            callback: function (response) {
+              console.log("PayStack callback response:", response);
+
+              // Handle the response in the main async function
+              if (response.status === "success") {
+                resolve(response);
+              } else {
+                reject(new Error("Payment failed or was cancelled"));
+              }
+            },
+            onClose: function () {
+              console.log("Payment window closed by user");
+              reject(new Error("Payment cancelled by user"));
+            },
+          });
+
+          console.log("Opening PayStack iframe...");
+          handler.openIframe();
+        } catch (error) {
+          console.error("Error setting up PayStack:", error);
+          reject(new Error("Failed to initialize payment. Please try again."));
+        }
+      }, 500); // Small delay to ensure everything is ready
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check if user is authenticated
+    if (!user) {
+      alert("Please login to continue with booking");
+      handleLogin();
+      return;
+    }
+
+    // Check if PayStack is loaded
+    if (!paystackLoaded) {
+      setPaymentError(
+        "Payment service is still loading. Please wait a moment and try again."
+      );
+      return;
+    }
 
     // Validate dates
     if (!formData.checkInDate || !formData.checkOutDate) {
@@ -419,7 +630,14 @@ export default function Book() {
       return;
     }
 
+    // Validate required fields
+    if (!formData.guestName || !formData.guestEmail || !formData.guestPhone) {
+      alert("Please fill in all required personal information fields");
+      return;
+    }
+
     setIsSubmitting(true);
+    setPaymentError("");
     let bookingRef;
 
     try {
@@ -428,8 +646,8 @@ export default function Book() {
 
       const diffTime = Math.abs(checkOut - checkIn);
       const noOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      const price = room?.price || parseFloat(roomPrice) || 0;
-      const totalAmount = noOfNights * price;
+      const pricePerNight = extractNumericPrice(roomPrice);
+      const totalAmount = noOfNights * pricePerNight;
 
       // Get the room image - try multiple sources
       let roomImageToSave = roomImage || "";
@@ -448,7 +666,7 @@ export default function Book() {
         guest_phone: formData.guestPhone,
         room_category: roomType,
         no_of_nights: noOfNights,
-        price_per_night: price,
+        price_per_night: pricePerNight,
         room_image: roomImageToSave,
         room_title: room?.title || roomTitle || "Room Booking",
         no_of_guests: parseInt(formData.noOfGuests),
@@ -457,76 +675,60 @@ export default function Book() {
         payment_method: formData.paymentMethod,
         special_requests: formData.specialRequests,
         booking_id: bookingRef,
+        created_at: new Date().toISOString(),
       };
 
-      console.log("Booking data being saved:", {
-        roomImageToSave,
-        roomImages: room?.images,
-        roomImageParam: roomImage,
-        roomTitle: room?.title || roomTitle,
-      });
+      console.log("Booking data prepared:", bookingFormData);
 
-      // Store in localStorage BEFORE payment
+      // Store in localStorage BEFORE payment (for recovery if needed)
       if (typeof window !== "undefined") {
         localStorage.setItem(
           `booking_${bookingRef}`,
           JSON.stringify(bookingFormData)
         );
-
-        // Set a timeout to clean up if payment doesn't complete
-        setTimeout(() => {
-          const stored = localStorage.getItem(`booking_${bookingRef}`);
-          if (stored) {
-            console.log("Cleaning up stale booking data:", bookingRef);
-            localStorage.removeItem(`booking_${bookingRef}`);
-          }
-        }, 30 * 60 * 1000); // 30 minutes
       }
 
-      // Process PayStack payment
-      await processPayment({
-        email: formData.guestEmail,
-        amount: totalAmount * 100, // Paystack expects amount in kobo (multiply by 100)
-        reference: bookingRef,
-        metadata: {
-          booking_id: bookingRef,
-          guest_name: formData.guestName,
-          room_type: roomType,
-          check_in_date: formData.checkInDate,
-          check_out_date: formData.checkOutDate,
-          no_of_nights: noOfNights,
-          no_of_guests: formData.noOfGuests,
-        },
+      // Process payment based on selected method
+      if (formData.paymentMethod === "paystack") {
+        console.log("Initiating PayStack payment...");
 
-        onSuccess: async (transaction) => {
-          try {
-            console.log("Payment successful, creating booking...");
+        // Make sure PayStack is available
+        if (!window.PaystackPop) {
+          throw new Error(
+            "Payment service not ready. Please refresh the page."
+          );
+        }
 
-            // Verify the payment
-            const verifyResponse = await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ reference: transaction.reference }),
-            });
+        // Initiate PayStack payment
+        const paymentResponse = await handlePaystackPayment(
+          bookingFormData,
+          totalAmount,
+          bookingRef
+        );
 
-            const verifyData = await verifyResponse.json();
+        if (paymentResponse.status === "success") {
+          console.log("PayStack payment successful, verifying...");
 
-            if (!verifyData.success) {
-              throw new Error(
-                verifyData.error || "Payment verification failed"
-              );
-            }
+          // Verify payment on backend
+          const verifyResponse = await fetch("/api/verify-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ reference: paymentResponse.reference }),
+          });
 
+          const verifyData = await verifyResponse.json();
+
+          if (verifyData.status && verifyData.data.status === "success") {
             // Add payment details to booking data
             const finalBookingData = {
               ...bookingFormData,
-              payment_reference: transaction.reference,
+              payment_reference: paymentResponse.reference,
               payment_status: "paid",
               booking_status: "confirmed",
-              payment_data: transaction,
-              created_at: new Date().toISOString(),
+              payment_data: verifyData.data,
+              updated_at: new Date().toISOString(),
             };
 
             // Create booking in database
@@ -538,10 +740,7 @@ export default function Book() {
 
             if (bookingError) {
               console.error("Error saving booking:", bookingError);
-              alert(
-                "Booking creation failed after payment. Please contact support."
-              );
-              return;
+              throw new Error("Failed to save booking after payment");
             }
 
             // Clean up localStorage
@@ -551,34 +750,34 @@ export default function Book() {
 
             // Show success
             setBookingSuccess(true);
+            setBookingReference(bookingRef);
             setPaymentStatus("completed");
-          } catch (error) {
-            console.error("Error processing successful payment:", error);
-            alert(
-              "Error completing booking after payment. Please contact support."
-            );
-
-            // Clean up on error
-            if (typeof window !== "undefined" && bookingRef) {
-              localStorage.removeItem(`booking_${bookingRef}`);
-            }
+            setIsSubmitting(false);
+          } else {
+            throw new Error("Payment verification failed");
           }
-        },
-
-        onClose: () => {
-          console.log("Payment cancelled by user");
-          alert("Payment cancelled. No booking was created.");
-          setIsSubmitting(false);
-
-          // Clean up localStorage
-          if (typeof window !== "undefined" && bookingRef) {
-            localStorage.removeItem(`booking_${bookingRef}`);
-          }
-        },
-      });
+        } else {
+          throw new Error("Payment failed");
+        }
+      } else {
+        throw new Error("Unsupported payment method");
+      }
     } catch (error) {
-      console.error("Error processing payment:", error);
-      alert(paymentError || "Failed to process payment. Please try again.");
+      console.error("Error processing booking:", error);
+
+      let errorMessage = "Failed to process payment. Please try again.";
+      if (error.message.includes("cancelled")) {
+        errorMessage = "Payment was cancelled. No booking was created.";
+      } else if (
+        error.message.includes("not ready") ||
+        error.message.includes("not available")
+      ) {
+        errorMessage =
+          "Payment service is not ready. Please refresh the page and try again.";
+      }
+
+      setPaymentError(errorMessage);
+      alert(errorMessage);
 
       // Clean up on error
       if (typeof window !== "undefined" && bookingRef) {
@@ -796,13 +995,63 @@ export default function Book() {
     return validImages.length > 0 ? validImages[0] : null;
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-32 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
             <p className="text-gray-600">Loading booking details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-32 pb-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center cursor-pointer text-gray-600 hover:text-gray-900 mb-8 transition-colors group"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
+            Back
+          </button>
+
+          <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 text-center">
+            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-amber-100">
+              <LogIn className="w-12 h-12 text-amber-600" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              Login Required
+            </h1>
+            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+              You need to be logged in to complete your booking. Please login or
+              create an account to continue.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={() =>
+                  router.push(
+                    "/login?redirect=" +
+                      window.location.pathname +
+                      window.location.search
+                  )
+                }
+                className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 transition-colors"
+              >
+                Login to Continue
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className="px-6 py-3 border cursor-pointer border-gray-300 text-gray-700 rounded-full font-semibold hover:border-gray-400 hover:bg-gray-50 transition-colors"
+              >
+                Back to Homepage
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -888,7 +1137,7 @@ export default function Book() {
                   <div>
                     <p className="text-sm text-gray-600">Total Amount</p>
                     <p className="text-2xl font-bold text-emerald-600">
-                      ₦{calculatedValues.totalAmount.toFixed(2)}K
+                      {formatPrice(calculatedValues.totalAmount)}
                     </p>
                   </div>
                   <div>
@@ -1093,7 +1342,9 @@ export default function Book() {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Price per night</span>
-                          <span className="font-medium">₦{room.price}K</span>
+                          <span className="font-medium">
+                            {formatPrice(roomPrice, true)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">
@@ -1108,7 +1359,7 @@ export default function Book() {
                             Total Amount
                           </span>
                           <span className="text-2xl font-bold text-emerald-600">
-                            ₦{calculatedValues.totalAmount.toFixed(2)}K
+                            {formatPrice(calculatedValues.totalAmount)}
                           </span>
                         </div>
                       </div>
@@ -1244,7 +1495,7 @@ export default function Book() {
                             ✓ {calculatedValues.noOfNights} night(s) selected
                           </span>
                           <span className="font-semibold ml-2">
-                            • ₦{calculatedValues.totalAmount.toFixed(2)}K total
+                            • {formatPrice(calculatedValues.totalAmount)} total
                           </span>
                         </p>
                       </div>
@@ -1318,6 +1569,16 @@ export default function Book() {
                   </div>
                 </div>
 
+                {/* Error Message */}
+                {paymentError && (
+                  <div className="mb-6 p-4 bg-rose-50 rounded-xl border border-rose-200">
+                    <p className="text-rose-700 flex items-center">
+                      <XCircle className="w-5 h-5 mr-2 shrink-0" />
+                      {paymentError}
+                    </p>
+                  </div>
+                )}
+
                 {/* Submit Button */}
                 <div className="flex items-center justify-between pt-6 border-t border-gray-200">
                   <div className="flex items-center text-sm text-gray-600">
@@ -1329,22 +1590,23 @@ export default function Book() {
                     type="submit"
                     disabled={
                       isSubmitting ||
-                      isPaymentProcessing ||
                       dateValidationError ||
                       !formData.checkInDate ||
-                      !formData.checkOutDate
+                      !formData.checkOutDate ||
+                      !formData.guestName ||
+                      !formData.guestEmail ||
+                      !formData.guestPhone ||
+                      !paystackLoaded
                     }
                     className="px-8 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting || isPaymentProcessing ? (
+                    {isSubmitting ? (
                       <span className="flex items-center">
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                         Processing Payment...
                       </span>
                     ) : (
-                      `Pay with PayStack • ₦${calculatedValues.totalAmount.toFixed(
-                        2
-                      )}K`
+                      `Pay ${formatPrice(calculatedValues.totalAmount)}`
                     )}
                   </button>
                 </div>

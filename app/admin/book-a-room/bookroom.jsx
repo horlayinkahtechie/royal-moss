@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import supabase from "../../lib/supabase";
 import Sidebar from "@/app/_components/admin/Sidebar";
+import { useRouter } from "next/navigation";
 
 // Helper function to format dates
 const formatDate = (date) => {
@@ -49,6 +50,7 @@ const tomorrow = formatDate(
 );
 
 export default function AdminBookRoom() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -87,10 +89,36 @@ export default function AdminBookRoom() {
   // Current step
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Fetch room categories on mount
   useEffect(() => {
-    fetchRoomCategories();
-  }, []);
+    const checkAdminRole = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", user.id)
+        .single();
+
+      // ❌ Not admin → unauthorized
+      if (userError || userData?.user_role !== "admin") {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      setLoading(false);
+      fetchRoomCategories();
+    };
+
+    checkAdminRole();
+  }, [router]);
 
   const fetchRoomCategories = async () => {
     try {

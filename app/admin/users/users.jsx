@@ -55,6 +55,7 @@ import Link from "next/link";
 import Sidebar from "@/app/_components/admin/Sidebar";
 import supabase from "../../lib/supabase";
 import { format, parseISO, differenceInDays } from "date-fns";
+import { useRouter } from "next/navigation";
 
 // User status options
 const statusOptions = ["all", "active", "inactive", "suspended", "pending"];
@@ -69,6 +70,7 @@ const authMethodOptions = [
 const roleOptions = ["all", "user", "admin"];
 
 export default function UsersPage() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [users, setUsers] = useState([]);
@@ -255,8 +257,35 @@ export default function UsersPage() {
   );
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    const checkAdminRole = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", user.id)
+        .single();
+
+      // ❌ Not admin → unauthorized
+      if (userError || userData?.user_role !== "admin") {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      setLoading(false);
+      fetchUsers();
+    };
+
+    checkAdminRole();
+  }, [router]);
 
   // Reset to page 1 when filters change
   useEffect(() => {

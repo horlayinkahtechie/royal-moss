@@ -26,6 +26,7 @@ import supabase from "../../lib/supabase";
 import { format } from "date-fns";
 import Sidebar from "@/app/_components/admin/Sidebar";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 // Gallery categories
 const categories = [
@@ -44,6 +45,7 @@ const categories = [
 const statusOptions = ["all", "active", "inactive"];
 
 export default function GalleryPage() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [galleries, setGalleries] = useState([]);
@@ -83,6 +85,37 @@ export default function GalleryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
   const [totalItems, setTotalItems] = useState(0);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", user.id)
+        .single();
+
+      // ❌ Not admin → unauthorized
+      if (userError || userData?.user_role !== "admin") {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      setLoading(false);
+      fetchGalleries();
+    };
+
+    checkAdminRole();
+  }, [router]);
 
   // Fetch galleries from Supabase
   const fetchGalleries = async () => {

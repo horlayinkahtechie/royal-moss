@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "../lib/supabase";
 import {
@@ -11,6 +11,7 @@ import {
   User,
   Phone,
   ArrowRight,
+  Hotel,
   Check,
   AlertCircle,
 } from "lucide-react";
@@ -37,96 +38,6 @@ export default function SignupPage() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-
-  // Add auth state listener for Google signup
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
-          const user = session.user;
-
-          // Check if this is a Google sign-in
-          const isGoogleSignIn = user.app_metadata?.provider === "google";
-
-          if (isGoogleSignIn) {
-            setIsLoading(true);
-            try {
-              // Check if user already exists in users table
-              const { data: existingUser, error: checkError } = await supabase
-                .from("users")
-                .select("id, user_role")
-                .eq("id", user.id)
-                .single();
-
-              // If user doesn't exist, create record
-              if (!existingUser) {
-                // Extract user info from Google metadata
-                const fullName =
-                  user.user_metadata?.full_name ||
-                  user.user_metadata?.name ||
-                  user.user_metadata?.email?.split("@")[0] ||
-                  "User";
-
-                const nameParts = fullName.trim().split(" ");
-                const firstName = nameParts[0] || "";
-                const lastName = nameParts.slice(1).join(" ") || "";
-
-                // Create user in database
-                const userData = {
-                  id: user.id,
-                  email: user.email,
-                  first_name: firstName,
-                  last_name: lastName,
-                  phone: user.user_metadata?.phone || "",
-                  auth_method: "google",
-                  user_role: "user", // Default to user role for Google signups
-                  status: "active",
-                  subscribed_to_newsletter: true,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                  email_confirmed_at:
-                    user.email_confirmed_at || new Date().toISOString(),
-                  last_login: new Date().toISOString(),
-                };
-
-                const { error: insertError } = await supabase
-                  .from("users")
-                  .insert(userData);
-
-                if (insertError) {
-                  console.error("Error inserting Google user:", insertError);
-                  setError("Failed to create user account. Please try again.");
-                  setIsLoading(false);
-                  return;
-                }
-
-                // Success - redirect to home page
-                setSuccess("Account created successfully! Redirecting...");
-                setTimeout(() => {
-                  router.push("/");
-                }, 1500);
-              } else {
-                // User exists, just redirect based on role
-                if (existingUser.user_role === "admin") {
-                  router.push("/admin/dashboard");
-                } else {
-                  router.push("/");
-                }
-              }
-            } catch (err) {
-              console.error("Error handling Google signup:", err);
-              setError("An error occurred. Please try again.");
-              setIsLoading(false);
-            }
-          }
-        }
-      }
-    );
-
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -171,7 +82,6 @@ export default function SignupPage() {
         }
       }
 
-      // 2. Sign up with email and password
       const { data: authData, error: signUpError } = await supabase.auth.signUp(
         {
           email: formData.email,
@@ -182,6 +92,7 @@ export default function SignupPage() {
               last_name: formData.lastName,
               phone: formData.phone,
             },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         }
       );
@@ -190,9 +101,8 @@ export default function SignupPage() {
         throw new Error(signUpError.message);
       }
 
-      // 3. Insert user data into users table immediately
       if (authData.user) {
-        const userData = {
+        const { error: insertError } = await supabase.from("users").insert({
           id: authData.user.id,
           email: formData.email,
           first_name: formData.firstName,
@@ -201,47 +111,21 @@ export default function SignupPage() {
           subscribed_to_newsletter: formData.newsletter,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          auth_method: "email_password",
-          user_role: "user", // Default role for email signup
-          status: "active",
-          email_confirmed_at: authData.user.email_confirmed_at || null,
-        };
-
-        const { error: insertError } = await supabase
-          .from("users")
-          .insert(userData);
+          auth_provider: "email_password",
+          user_role: "user",
+        });
 
         if (insertError) {
           console.error("Error inserting user data:", insertError);
-          // Don't throw error - auth succeeded even if users table insert fails
         }
 
-        // Check if admin (based on email domain or specific email)
-        const isAdminEmail =
-          formData.email.endsWith("@admin.com") ||
-          formData.email === "admin@example.com"; // Change to your admin email
+        setSuccess(
+          "Account created successfully! Please check your email to confirm your account."
+        );
 
-        if (isAdminEmail) {
-          // Update user role to admin
-          await supabase
-            .from("users")
-            .update({ user_role: "admin" })
-            .eq("id", authData.user.id);
-
-          setSuccess(
-            "Admin account created successfully! Redirecting to admin dashboard..."
-          );
-          setTimeout(() => {
-            router.push("/admin/dashboard");
-          }, 2000);
-        } else {
-          setSuccess(
-            "Account created successfully! Please check your email to confirm your account."
-          );
-          setTimeout(() => {
-            router.push("/");
-          }, 3000);
-        }
+        setTimeout(() => {
+          router.push("/");
+        }, 1500);
       }
     } catch (err) {
       setError(err.message || "An error occurred during sign up");
@@ -256,10 +140,10 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // No callback URL needed - we'll handle it with auth state listener
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -271,7 +155,8 @@ export default function SignupPage() {
         throw new Error(error.message);
       }
 
-      // The auth state listener will handle the rest
+      // The user will be redirected to Google for authentication
+      // After successful auth, they'll be redirected back to /auth/callback
     } catch (err) {
       setError(err.message || "An error occurred during Google sign up");
       setIsLoading(false);
@@ -333,13 +218,21 @@ export default function SignupPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-linear-to-br pt-30 from-sky-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br pt-30 from-sky-50 to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-6xl w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Left Column - Form */}
           <div className="p-8 sm:p-12 lg:p-16">
             <div className="mb-8">
               <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-sky-100 rounded-lg">
+                    <Hotel className="w-6 h-6 text-sky-600" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Royal Moss
+                  </h1>
+                </div>
                 <Link
                   href="/login"
                   className="text-sm cursor-pointer text-sky-600 hover:text-sky-700 transition-colors font-medium"
@@ -630,19 +523,19 @@ export default function SignupPage() {
                       className="ml-2 text-sm text-gray-700"
                     >
                       I agree to the{" "}
-                      <a
-                        href="/terms"
-                        className="text-sky-600 hover:text-sky-700"
+                      <Link
+                        href="/privacy-policy"
+                        className="text-sky-600 cursor-pointer hover:text-sky-700"
                       >
                         Terms & Conditions
-                      </a>{" "}
+                      </Link>{" "}
                       and{" "}
-                      <a
-                        href="/privacy"
-                        className="text-sky-600 hover:text-sky-700"
+                      <Link
+                        href="/privacy-policy"
+                        className="text-sky-600 cursor-pointer hover:text-sky-700"
                       >
                         Privacy Policy
-                      </a>
+                      </Link>
                     </label>
                   </div>
 
@@ -753,7 +646,7 @@ export default function SignupPage() {
           </div>
 
           {/* Right Column - Benefits & Image */}
-          <div className="hidden lg:block relative bg-linear-to-br from-sky-600 to-purple-600">
+          <div className="hidden lg:block relative bg-gradient-to-br from-sky-600 to-purple-600">
             {/* Decorative Elements */}
             <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full backdrop-blur-sm animate-pulse"></div>
             <div className="absolute bottom-10 right-10 w-40 h-40 bg-white/10 rounded-full backdrop-blur-sm"></div>

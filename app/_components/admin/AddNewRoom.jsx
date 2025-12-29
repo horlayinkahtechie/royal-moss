@@ -191,8 +191,35 @@ export default function AddRoomPage() {
 
   // Fetch next available room number
   useEffect(() => {
-    fetchNextRoomNumber();
-  }, []);
+    const checkAdminRole = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", user.id)
+        .single();
+
+      // ❌ Not admin → unauthorized
+      if (userError || userData?.user_role !== "admin") {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      setLoading(false);
+      fetchNextRoomNumber();
+    };
+
+    checkAdminRole();
+  }, [router]);
 
   const fetchNextRoomNumber = async () => {
     try {

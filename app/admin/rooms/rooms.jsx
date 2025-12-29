@@ -42,6 +42,7 @@ import Image from "next/image";
 import Sidebar from "@/app/_components/admin/Sidebar";
 import supabase from "../../lib/supabase";
 import { FaNairaSign } from "react-icons/fa6";
+import { useRouter } from "next/navigation";
 
 const amenitiesList = [
   { id: "wifi", label: "Wi-Fi", icon: <Wifi className="w-4 h-4" /> },
@@ -55,6 +56,7 @@ const amenitiesList = [
 ];
 
 export default function RoomsPage() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [rooms, setRooms] = useState([]);
@@ -85,6 +87,37 @@ export default function RoomsPage() {
   // Fetch room categories, statuses, dynamically
   const [categoryOptions, setCategoryOptions] = useState(["all"]);
   const [statusOptions, setStatusOptions] = useState(["all"]);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", user.id)
+        .single();
+
+      // ❌ Not admin → unauthorized
+      if (userError || userData?.user_role !== "admin") {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      setLoading(false);
+      fetchRooms();
+    };
+
+    checkAdminRole();
+  }, [router]);
 
   // Price formatting function
   const formatPrice = (price) => {
@@ -841,14 +874,12 @@ export default function RoomsPage() {
               {
                 label: "Total Rooms",
                 value: stats.totalRooms.toString(),
-                change: "+2",
                 icon: <Hotel className="w-6 h-6" />,
                 color: "text-sky-400",
               },
               {
                 label: "Available",
                 value: stats.availableRooms.toString(),
-                change: "+4",
                 icon: <CheckCircle className="w-6 h-6" />,
                 color: "text-emerald-400",
               },
@@ -856,7 +887,6 @@ export default function RoomsPage() {
               {
                 label: "Avg. Rate",
                 value: formatPrice(stats.avgRate),
-                change: "+8%",
                 icon: <FaNairaSign className="w-6 h-6" />,
                 color: "text-purple-400",
               },
@@ -869,15 +899,6 @@ export default function RoomsPage() {
                   <div className="p-3 rounded-xl bg-gray-900/30">
                     <div className={stat.color}>{stat.icon}</div>
                   </div>
-                  <span
-                    className={`text-sm font-medium ${
-                      stat.change.startsWith("+")
-                        ? "text-emerald-400"
-                        : "text-red-400"
-                    }`}
-                  >
-                    {stat.change}
-                  </span>
                 </div>
                 <h3 className="text-3xl font-bold text-white mb-1">
                   {stat.value}

@@ -32,6 +32,80 @@ export default function LoginPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  // Function to fetch user role from users table
+  const getUserRole = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user role:", error);
+        return "user"; // Default to user if error occurs
+      }
+
+      return data?.user_role || "user"; // Default to 'user' if role not found
+    } catch (err) {
+      console.error("Error in getUserRole:", err);
+      return "user";
+    }
+  };
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get("redirectTo");
+      if (redirectTo) {
+        try {
+          // Try to decode, but if it's already decoded, this will work fine
+          const decodedRedirect = decodeURIComponent(redirectTo);
+          // Store the redirect path for use after login
+          sessionStorage.setItem("redirectAfterLogin", decodedRedirect);
+        } catch (error) {
+          // If decode fails (already decoded), just store as-is
+          sessionStorage.setItem("redirectAfterLogin", redirectTo);
+        }
+      }
+    }
+  }, []);
+
+  // Helper function to determine redirect path
+  const getRedirectPath = (userRole, storedRedirect) => {
+    // Admin always goes to admin dashboard
+    if (userRole === "admin") {
+      return {
+        path: "/admin/dashboard",
+        message: "Login successful! Redirecting to admin dashboard...",
+      };
+    }
+
+    // Non-admin user with stored redirect
+    if (storedRedirect) {
+      sessionStorage.removeItem("redirectAfterLogin");
+
+      if (storedRedirect.startsWith("/admin")) {
+        // Non-admin tried to access admin page
+        return {
+          path: "/unauthorized",
+          message: "Login successful! Redirecting...",
+        };
+      }
+
+      // Valid redirect for non-admin user
+      return {
+        path: storedRedirect,
+        message: "Login successful! Redirecting...",
+      };
+    }
+
+    // Default for non-admin user
+    return {
+      path: "/",
+      message: "Login successful! Redirecting to home page...",
+    };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -39,46 +113,46 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Sign in with email and password
-      const { data, error: signInError } =
+      // 1️⃣ Authenticate user
+      const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
 
-      if (signInError) {
-        // Handle specific error cases
-        if (signInError.message === "Invalid login credentials") {
-          setError("Invalid email or password. Please try again.");
-        } else if (signInError.message.includes("Email not confirmed")) {
-          setError("Please confirm your email address before logging in.");
-        } else {
-          setError(signInError.message);
-        }
-        setIsLoading(false);
-        return;
+      if (authError) throw authError;
+      if (!authData?.user) {
+        throw new Error("Authentication failed");
       }
 
-      if (data.user) {
-        setSuccess("Login successful! Redirecting...");
+      // 2️⃣ Fetch user role from users table
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", authData.user.id)
+        .single();
 
-        // Store remember me preference
-        if (formData.rememberMe) {
-          localStorage.setItem("rememberMe", "true");
-          localStorage.setItem("userEmail", formData.email);
-        } else {
-          localStorage.removeItem("rememberMe");
-          localStorage.removeItem("userEmail");
-        }
+      if (userError) throw userError;
 
-        // Redirect to dashboard after 1.5 seconds
-        setTimeout(() => {
-          router.push("/");
-          router.refresh();
-        }, 1500);
+      // 3️⃣ Handle Remember Me
+      if (formData.rememberMe) {
+        localStorage.setItem("rememberMe", "true");
+        localStorage.setItem("userEmail", formData.email);
+      } else {
+        localStorage.removeItem("rememberMe");
+        localStorage.removeItem("userEmail");
+      }
+
+      // 4️⃣ Redirect based on role
+      if (userData?.user_role === "admin") {
+        window.location.assign("/admin/dashboard");
+      } else {
+        window.location.assign("/");
       }
     } catch (err) {
-      setError(err.message || "An error occurred during login");
+      console.error("Login error:", err);
+      setError(err.message || "Invalid credentials, please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -89,10 +163,26 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // Check for stored redirect (already decoded from useEffect)
+      const storedRedirect = sessionStorage.getItem("redirectAfterLogin");
+
+      // Build the redirect URL with query parameters
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const redirectUrl = new URL(redirectTo);
+
+      // Pass the original redirect as a query parameter
+      if (storedRedirect) {
+        // Encode it for the URL
+        redirectUrl.searchParams.set(
+          "redirect",
+          encodeURIComponent(storedRedirect)
+        );
+      }
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl.toString(),
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -103,9 +193,6 @@ export default function LoginPage() {
       if (error) {
         throw new Error(error.message);
       }
-
-      // The user will be redirected to Google for authentication
-      // After successful auth, they'll be redirected back to /auth/callback
     } catch (err) {
       setError(err.message || "An error occurred during Google sign in");
       setIsLoading(false);

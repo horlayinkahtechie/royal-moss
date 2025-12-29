@@ -238,14 +238,6 @@ export default function Sidebar({ isOpen, onClose }) {
               ? badgeCounts.bookings.checkoutsToday.toString()
               : null,
         },
-        {
-          label: "Pending Approval",
-          href: "/admin/bookings/pending",
-          badge:
-            badgeCounts.bookings.pending > 0
-              ? badgeCounts.bookings.pending.toString()
-              : null,
-        },
       ],
     },
     {
@@ -269,14 +261,6 @@ export default function Sidebar({ isOpen, onClose }) {
         {
           label: "Room Availability",
           href: "/admin/room-availability",
-        },
-        {
-          label: "Maintenance",
-          href: "/admin/rooms/maintenance",
-          badge:
-            badgeCounts.rooms.maintenance > 0
-              ? badgeCounts.rooms.maintenance.toString()
-              : null,
         },
       ],
     },

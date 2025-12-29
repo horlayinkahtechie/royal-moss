@@ -77,6 +77,7 @@ import {
 } from "recharts";
 import { FaNairaSign } from "react-icons/fa6";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 // Chart time frame options
 const chartTimeFrames = [
@@ -106,6 +107,7 @@ const statusOptions = [
 const paymentStatusOptions = ["all", "paid", "pending", "partial", "refunded"];
 
 export default function BookingsPage() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [bookings, setBookings] = useState([]);
@@ -150,6 +152,37 @@ export default function BookingsPage() {
 
   // Debounce search
   const [searchTimeout, setSearchTimeout] = useState(null);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", user.id)
+        .single();
+
+      // ❌ Not admin → unauthorized
+      if (userError || userData?.user_role !== "admin") {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      setLoading(false);
+      fetchData();
+    };
+
+    checkAdminRole();
+  }, [router]);
 
   // Fetch all data
   const fetchData = useCallback(

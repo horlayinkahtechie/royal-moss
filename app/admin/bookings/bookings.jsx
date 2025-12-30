@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
-  Filter,
   Calendar,
   User,
   CreditCard,
@@ -29,10 +28,6 @@ import {
   List,
   Hotel,
   CalendarCheck,
-  CheckSquare,
-  Shield,
-  Zap,
-  Star,
   TrendingUp,
   ChevronRight,
   ChevronLeft,
@@ -48,7 +43,6 @@ import Sidebar from "@/app/_components/admin/Sidebar";
 import supabase from "../../lib/supabase";
 import {
   format,
-  parseISO,
   subDays,
   subMonths,
   subYears,
@@ -61,7 +55,6 @@ import {
   startOfYear,
   endOfYear,
   eachDayOfInterval,
-  eachWeekOfInterval,
   eachMonthOfInterval,
 } from "date-fns";
 import {
@@ -1531,7 +1524,7 @@ Hotel Management Team`);
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                   {guestInitials}
                 </div>
                 <div>
@@ -1932,7 +1925,7 @@ Hotel Management Team`);
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Modals */}
       {showBookingModal && <BookingModal />}
       {showEditModal && <EditBookingModal />}
@@ -1994,16 +1987,24 @@ Hotel Management Team`);
                 {/* Check Availability Button */}
                 <Link
                   href="/admin/room-availability"
-                  className="flex items-center gap-2 cursor-pointer px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 cursor-pointer px-5 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <CalendarCheck className="w-5 h-5" />
                   Check Availability
                 </Link>
 
+                <Link
+                  href="/admin/quick-checkin"
+                  className="flex items-center gap-2 px-5 text-[14px] py-3 bg-linear-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                >
+                  <CalendarCheck className="w-5 h-5" />
+                  Check-in & Out
+                </Link>
+
                 {/* Book Room Button */}
                 <Link
                   href="/admin/book-a-room"
-                  className="flex items-center cursor-pointer gap-2 px-5 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center cursor-pointer gap-2 px-5 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <Plus className="w-5 h-5" />
                   Book Room
@@ -2351,7 +2352,7 @@ Hotel Management Team`);
                 <div className="flex items-center justify-center gap-4">
                   <Link
                     href="/admin/book-room"
-                    className="px-6 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
+                    className="px-6 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
                   >
                     Create New Booking
                   </Link>
@@ -2390,7 +2391,7 @@ Hotel Management Team`);
                   >
                     {/* Simplified grid view card */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-10 h-10 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                         {booking.guest_name
                           ?.split(" ")
                           .map((n) => n[0])

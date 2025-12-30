@@ -17,7 +17,6 @@ import {
   Home,
   Eye,
   Save,
-  XCircle,
   Loader2,
   Check,
   Building,
@@ -208,7 +207,6 @@ export default function AddRoomPage() {
         .eq("id", user.id)
         .single();
 
-      // ❌ Not admin → unauthorized
       if (userError || userData?.user_role !== "admin") {
         router.replace("/unauthorized");
         return;
@@ -376,7 +374,7 @@ export default function AddRoomPage() {
         .substring(7)}-${file.name}`;
 
       try {
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from("room-images")
           .upload(fileName, file);
 
@@ -460,7 +458,7 @@ export default function AddRoomPage() {
       };
 
       // Insert into database
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("rooms")
         .insert([roomData])
         .select();
@@ -524,7 +522,7 @@ export default function AddRoomPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="flex min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -989,7 +987,7 @@ export default function AddRoomPage() {
                     <button
                       type="submit"
                       disabled={loading || uploadingImages}
-                      className="px-6 py-3 bg-gradient-to-r cursor-pointer from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-6 py-3 bg-linear-to-r cursor-pointer from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       {loading ? (
                         <>

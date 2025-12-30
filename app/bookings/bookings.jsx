@@ -733,7 +733,7 @@ const BookingsPage = () => {
                     <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                       {/* Room Image */}
                       <div className="lg:w-1/4">
-                        <div className="aspect-4/3 relative rounded-xl overflow-hidden bg-gradient-to-br from-sky-400 to-purple-500">
+                        <div className="aspect-4/3 relative rounded-xl overflow-hidden bg-linear-to-br from-sky-400 to-purple-500">
                           {booking.room_image ? (
                             <Image
                               src={booking.room_image}

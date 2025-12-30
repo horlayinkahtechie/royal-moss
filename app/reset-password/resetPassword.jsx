@@ -59,9 +59,8 @@ export default function UpdatePassword() {
     }
   };
 
-  // --- UI for the Update Password page ---
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-sky-50 to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8">
         <button
           onClick={() => router.back()}

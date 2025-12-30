@@ -25,13 +25,8 @@ import {
   Coffee,
   Waves,
   Shield,
-  Lock,
   Calendar,
   Home,
-  Building,
-  MapPin,
-  Settings,
-  Zap,
   Loader2,
   Image as ImageIcon,
   X,
@@ -155,7 +150,7 @@ export default function RoomsPage() {
       if (roomsError) throw roomsError;
 
       // Fetch current bookings to determine room availability
-      const { data: bookingsData, error: bookingsError } = await supabase
+      const { error: bookingsError } = await supabase
         .from("bookings")
         .select("room_number, booking_status, check_out_date")
         .or("booking_status.eq.confirmed,booking_status.eq.checked-in")
@@ -375,7 +370,7 @@ export default function RoomsPage() {
     return (
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 hover:border-sky-500/50 transition-all duration-300 overflow-hidden group">
         {/* Room Image Header */}
-        <div className="relative h-48 bg-gradient-to-br from-sky-900/50 to-purple-900/50 overflow-hidden">
+        <div className="relative h-48 bg-linear-to-br from-sky-900/50 to-purple-900/50 overflow-hidden">
           {mainImage ? (
             <div
               className="w-full h-full cursor-pointer"
@@ -402,7 +397,7 @@ export default function RoomsPage() {
           {/* Featured Badge */}
           {room.featured && (
             <div className="absolute top-4 left-4">
-              <div className="px-3 py-1 bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-semibold rounded-full flex items-center gap-1">
+              <div className="px-3 py-1 bg-linear-to-r from-amber-600 to-amber-500 text-white text-sm font-semibold rounded-full flex items-center gap-1">
                 <Star className="w-3 h-3" />
                 Featured
               </div>
@@ -541,7 +536,7 @@ export default function RoomsPage() {
           <div className="flex items-center gap-6">
             <div className="relative">
               <div
-                className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-sky-900/50 to-purple-900/50 flex items-center justify-center cursor-pointer"
+                className="w-16 h-16 rounded-xl overflow-hidden bg-linear-to-br from-sky-900/50 to-purple-900/50 flex items-center justify-center cursor-pointer"
                 onClick={() => handleViewImages(room.room_image)}
               >
                 {mainImage ? (
@@ -702,7 +697,7 @@ export default function RoomsPage() {
                 <button
                   key={index}
                   onClick={() => setCurrentIndex(index)}
-                  className={`flex-shrink-0 w-16 h-16 cursor-pointer rounded-lg overflow-hidden border-2 ${
+                  className={`shrink-0 w-16 h-16 cursor-pointer rounded-lg overflow-hidden border-2 ${
                     currentIndex === index
                       ? "border-sky-500"
                       : "border-transparent"
@@ -791,7 +786,7 @@ export default function RoomsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Modals */}
       <ImageModal />
       <DeleteConfirmationModal />
@@ -850,7 +845,7 @@ export default function RoomsPage() {
               <div className="flex lg:justify-end items-center gap-4">
                 <Link
                   href="/admin/add-new-room"
-                  className="flex items-center gap-2 px-5 py-3 cursor-pointer bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 px-5 py-3 cursor-pointer bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <Plus className="w-5 h-5" />
                   Add New Room
@@ -859,7 +854,7 @@ export default function RoomsPage() {
                 {/* Check Availability Button */}
                 <Link
                   href="/admin/room-availability"
-                  className="flex items-center gap-2 px-5 py-3 cursor-pointer bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 px-5 py-3 cursor-pointer bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <Calendar className="w-5 h-5" />
                   Check Availability
@@ -1081,7 +1076,7 @@ export default function RoomsPage() {
               <div className="flex items-center justify-center gap-4">
                 <Link
                   href="/admin/add-new-room"
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-medium transition-colors"
+                  className="px-6 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-medium transition-colors"
                 >
                   <Plus className="w-5 h-5 inline mr-2" />
                   Add New Room
@@ -1132,9 +1127,9 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
     room_title: room.room_title || "",
     room_category: room.room_category || categories[0] || "Standard Room",
     price_per_night: room.price_per_night || 0,
-    discounted_price_per_night: room.discounted_price_per_night || "",
+    discounted_price_per_night: room.discounted_price_per_night,
     no_of_guest: room.no_of_guest || 2,
-    room_dimension: room.room_dimension || "",
+    room_dimension: room.room_dimension || "Null",
     room_description: room.room_description || "",
     amenities: room.amenities || [],
     room_availability: room.room_availability !== false,
@@ -1144,6 +1139,26 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
       ? [room.room_image]
       : [],
   });
+
+  const cleanupBlobUrls = () => {
+    // Revoke any blob URLs to prevent memory leaks
+    formData.room_image.forEach((url) => {
+      if (url.startsWith("blob:")) {
+        URL.revokeObjectURL(url);
+      }
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      // Clean up blob URLs when component unmounts
+      formData.room_image.forEach((url) => {
+        if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [formData.room_image]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1173,7 +1188,39 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
     }
   };
 
-  const handleImageRemove = (index) => {
+  const handleImageRemove = async (index) => {
+    const imageToRemove = formData.room_image[index];
+
+    // If it's a blob URL, just remove it from the array
+    if (imageToRemove.startsWith("blob:")) {
+      const updatedImages = [...formData.room_image];
+      updatedImages.splice(index, 1);
+      setFormData({ ...formData, room_image: updatedImages });
+      return;
+    }
+
+    // If it's a Supabase Storage URL, you might want to delete it from storage
+    const shouldDeleteFromStorage = window.confirm(
+      "Do you want to delete this image from storage as well?"
+    );
+
+    if (shouldDeleteFromStorage) {
+      try {
+        const urlParts = imageToRemove.split("/");
+        const fileName = urlParts[urlParts.length - 1];
+
+        const { error } = await supabase.storage
+          .from("room-images")
+          .remove([`room-images/${fileName}`]);
+
+        if (error) {
+          console.error("Error deleting image:", error);
+        }
+      } catch (error) {
+        console.error("Error deleting image:", error);
+      }
+    }
+
     const updatedImages = [...formData.room_image];
     updatedImages.splice(index, 1);
     setFormData({ ...formData, room_image: updatedImages });
@@ -1182,13 +1229,55 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
 
-    // For now, we'll just store the file objects
-    // In a real app, you'd upload these to Supabase Storage
-    const newImages = files.map((file) => URL.createObjectURL(file));
-    setFormData({
-      ...formData,
-      room_image: [...formData.room_image, ...newImages],
-    });
+    if (files.length === 0) return;
+
+    setLoading(true);
+
+    try {
+      const uploadedImageUrls = [];
+
+      for (const file of files) {
+        // Create a unique filename
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2)}.${fileExt}`;
+        const filePath = `room-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("room-images")
+          .upload(filePath, file);
+
+        if (uploadError) {
+          if (uploadError.message === "The resource already exists") {
+            uploadedImageUrls.push(
+              `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/room-images/${filePath}`
+            );
+          } else {
+            throw uploadError;
+          }
+        } else {
+          // Get the public URL
+          const { data: publicUrlData } = supabase.storage
+            .from("room-images")
+            .getPublicUrl(filePath);
+
+          if (publicUrlData?.publicUrl) {
+            uploadedImageUrls.push(publicUrlData.publicUrl);
+          }
+        }
+      }
+
+      setFormData({
+        ...formData,
+        room_image: [...formData.room_image, ...uploadedImageUrls],
+      });
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      alert("Failed to upload images. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1374,6 +1463,10 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
                         src={img}
                         alt={`Room image ${index + 1}`}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "/placeholder-image.jpg";
+                        }}
                       />
                     </div>
                     <button
@@ -1489,7 +1582,7 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r cursor-pointer from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-linear-to-r cursor-pointer from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">

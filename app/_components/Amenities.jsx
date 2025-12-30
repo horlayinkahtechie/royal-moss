@@ -14,7 +14,6 @@ import {
   Coffee,
   Wine,
   Sun,
-  Moon,
   Shield,
   Users,
 } from "lucide-react";
@@ -188,7 +187,7 @@ const Amenities = () => {
               }
             `}</style>
 
-            {amenities.map((amenity, index) => (
+            {amenities.map((amenity) => (
               <div
                 key={amenity.title}
                 className="shrink-0 w-72 md:w-auto md:shrink md:min-w-0 group bg-white p-6 rounded-2xl shadow-lg border border-gray-200 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2"

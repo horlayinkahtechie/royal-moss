@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import supabase from "../../lib/supabase";
-import { Clock, User, Calendar, CheckCircle, XCircle } from "lucide-react";
+import { Clock, Calendar, CheckCircle, XCircle } from "lucide-react";
 
 const RecentBookings = ({ limit = 5 }) => {
   const [bookings, setBookings] = useState([]);

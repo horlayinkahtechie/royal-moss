@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Calendar,
   User,
@@ -8,7 +8,6 @@ import {
   DollarSign,
   Bed,
   Users,
-  Clock,
   Shield,
   CheckCircle,
   XCircle,
@@ -21,14 +20,12 @@ import {
   Wind,
   Coffee,
   Waves,
-  Plus,
   CalendarDays,
   UserCheck,
   Receipt,
   Wallet,
   Smartphone,
   ChevronLeft,
-  ChevronRight,
   Check,
   X,
   Mail,
@@ -38,12 +35,10 @@ import supabase from "../../lib/supabase";
 import Sidebar from "@/app/_components/admin/Sidebar";
 import { useRouter } from "next/navigation";
 
-// Helper function to format dates
 const formatDate = (date) => {
   return new Date(date).toISOString().split("T")[0];
 };
 
-// Get today's date and tomorrow's date for default values
 const today = formatDate(new Date());
 const tomorrow = formatDate(
   new Date(new Date().setDate(new Date().getDate() + 1))
@@ -353,7 +348,6 @@ export default function AdminBookRoom() {
             : "pending",
         payment_method: paymentDetails.paymentMethod,
         user_id: "Booked by admin",
-        // paid_amount: parseFloat(paymentDetails.amountPaid) || 0,
         payment_reference: paymentDetails.transactionId,
         booking_status: "confirmed",
         special_requests: guestDetails.specialRequests,
@@ -364,7 +358,7 @@ export default function AdminBookRoom() {
       };
 
       // Insert booking into database
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("bookings")
         .insert([bookingData])
         .select();
@@ -454,7 +448,7 @@ export default function AdminBookRoom() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-br from-sky-900/50 to-purple-900/50 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-linear-to-br from-sky-900/50 to-purple-900/50 rounded-xl flex items-center justify-center">
                 <Bed className="w-6 h-6 text-gray-400" />
               </div>
               <div>
@@ -533,7 +527,7 @@ export default function AdminBookRoom() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Top Navigation Bar */}
       <div className="sticky top-0 z-40">
         <div className="px-6 py-4">
@@ -865,7 +859,7 @@ export default function AdminBookRoom() {
                 <div className="bg-gray-900/30 rounded-xl p-6 mb-8">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-900/50 to-sky-900/50 rounded-xl flex items-center justify-center">
+                      <div className="w-16 h-16 bg-linear-to-br from-emerald-900/50 to-sky-900/50 rounded-xl flex items-center justify-center">
                         <Bed className="w-8 h-8 text-gray-400" />
                       </div>
                       <div>

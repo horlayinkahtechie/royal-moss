@@ -6,10 +6,11 @@ const nextConfig = {
       "upload.wikimedia.org",
       "lh3.googleusercontent.com",
       "example.com",
-      "mlkyvftadbtjeiuhksnq.supabase.co",
+      "fgaqtkxeomkvifcxxjvd.supabase.co",
       "images.unsplash.com",
       "media.istockphoto.com",
-      "plus.unsplash.com"
+      "plus.unsplash.com",
+      "royalmoss.netlify.app"
     ],
   },
 };

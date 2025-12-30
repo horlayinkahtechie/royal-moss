@@ -18,7 +18,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FaNairaSign } from "react-icons/fa6";
 import supabase from "../../lib/supabase";
-import { format, startOfDay, endOfDay, isToday } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
@@ -223,19 +223,11 @@ export default function Sidebar({ isOpen, onClose }) {
           href: "/admin/book-a-room",
         },
         {
-          label: "Check-ins Today",
-          href: "/admin/bookings/checkins",
+          label: "Check ins & outs Today",
+          href: "/admin/bookings/today-checkin",
           badge:
             badgeCounts.bookings.checkinsToday > 0
               ? badgeCounts.bookings.checkinsToday.toString()
-              : null,
-        },
-        {
-          label: "Check-outs Today",
-          href: "/admin/bookings/checkouts",
-          badge:
-            badgeCounts.bookings.checkoutsToday > 0
-              ? badgeCounts.bookings.checkoutsToday.toString()
               : null,
         },
       ],
@@ -324,7 +316,7 @@ export default function Sidebar({ isOpen, onClose }) {
     {
       label: "Quick Check-in",
       icon: <Plus className="w-4 h-4" />,
-      href: "/admin/checkin",
+      href: "/admin/quick-checkin",
       color: "bg-gradient-to-r from-emerald-500 to-emerald-600",
     },
     {
@@ -358,7 +350,7 @@ export default function Sidebar({ isOpen, onClose }) {
         transform transition-all duration-300 ease-out
         ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         flex flex-col
-        bg-gradient-to-b from-white via-white to-gray-50
+        bg-linear-to-b from-white via-white to-gray-50
         dark:from-gray-900 dark:via-gray-900 dark:to-gray-950
         border-r border-gray-200/80 dark:border-gray-800/80
         shadow-xl lg:shadow-2xl
@@ -380,7 +372,7 @@ export default function Sidebar({ isOpen, onClose }) {
                         ${
                           expandedMenus[item.id] ||
                           pathname.startsWith(`/admin/${item.id}`)
-                            ? "bg-gradient-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
+                            ? "bg-linear-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
                             : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50"
                         }
                         hover:shadow-sm
@@ -391,7 +383,7 @@ export default function Sidebar({ isOpen, onClose }) {
                           className={`p-2 rounded-lg mr-3 ${
                             expandedMenus[item.id] ||
                             pathname.startsWith(`/admin/${item.id}`)
-                              ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white"
+                              ? "bg-linear-to-br from-sky-500 to-sky-600 text-white"
                               : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                           }`}
                         >
@@ -423,7 +415,7 @@ export default function Sidebar({ isOpen, onClose }) {
                               flex items-center cursor-pointer justify-between px-4 py-2.5 rounded-lg text-sm transition-all duration-200
                               ${
                                 pathname === subItem.href
-                                  ? "bg-gradient-to-r from-sky-500/10 to-sky-600/10 dark:from-sky-900/40 dark:to-sky-800/40 text-sky-700 dark:text-sky-400 font-medium"
+                                  ? "bg-linear-to-r from-sky-500/10 to-sky-600/10 dark:from-sky-900/40 dark:to-sky-800/40 text-sky-700 dark:text-sky-400 font-medium"
                                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
                               }
                             `}
@@ -447,7 +439,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       flex items-center cursor-pointer justify-between px-4 py-3 rounded-xl transition-all duration-200
                       ${
                         pathname === item.href
-                          ? "bg-gradient-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
+                          ? "bg-linear-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50"
                       }
                       hover:shadow-sm
@@ -459,7 +451,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <div
                         className={`p-2 rounded-lg mr-3 transition-all duration-200 ${
                           pathname === item.href
-                            ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow"
+                            ? "bg-linear-to-br from-sky-500 to-sky-600 text-white shadow"
                             : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-sky-100 dark:group-hover:bg-sky-900/30"
                         }`}
                       >
@@ -488,7 +480,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="flex items-center cursor-pointer px-4 py-3.5 rounded-xl bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50 border border-gray-200/80 dark:border-gray-800/80 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-lg transition-all duration-300 group"
+                  className="flex items-center cursor-pointer px-4 py-3.5 rounded-xl bg-linear-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50 border border-gray-200/80 dark:border-gray-800/80 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-lg transition-all duration-300 group"
                   onClick={onClose}
                 >
                   <div
@@ -518,7 +510,7 @@ export default function Sidebar({ isOpen, onClose }) {
               ${
                 isLoggingOut
                   ? "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-                  : "bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:shadow-sm"
+                  : "bg-linear-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:shadow-sm"
               }
               ${isLoggingOut ? "cursor-not-allowed" : "hover:shadow-sm"}
             `}
@@ -527,7 +519,7 @@ export default function Sidebar({ isOpen, onClose }) {
               className={`p-2 rounded-lg mr-3 ${
                 isLoggingOut
                   ? "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                  : "bg-gradient-to-br from-red-500 to-red-600 text-white"
+                  : "bg-linear-to-br from-red-500 to-red-600 text-white"
               }`}
             >
               {isLoggingOut ? (

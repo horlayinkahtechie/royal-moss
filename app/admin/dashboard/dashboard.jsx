@@ -24,18 +24,10 @@ import {
   ChevronUp,
   Plus,
   RefreshCw,
-  BarChart3,
   Grid,
   List,
   Hotel,
   CalendarCheck,
-  CheckSquare,
-  Shield,
-  Zap,
-  Star,
-  TrendingUp,
-  ChevronRight,
-  TrendingDown,
   Activity,
   ExternalLink,
   Trash2,
@@ -60,9 +52,6 @@ import {
   endOfYear,
   parseISO,
   isValid,
-  eachDayOfInterval,
-  eachWeekOfInterval,
-  eachMonthOfInterval,
 } from "date-fns";
 import {
   LineChart,
@@ -72,8 +61,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from "recharts";
 import { FaNairaSign } from "react-icons/fa6";
 import Image from "next/image";
@@ -1361,7 +1348,6 @@ Hotel Management`;
   };
 
   const BookingCard = ({ booking }) => {
-    const room = booking.room_details || {};
     const guestInitials = booking.guest_name
       ? booking.guest_name
           .split(" ")
@@ -1385,7 +1371,7 @@ Hotel Management`;
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                   {guestInitials}
                 </div>
                 <div>
@@ -1644,7 +1630,7 @@ Hotel Management`;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Modals */}
       {showBookingModal && <BookingModal />}
       {showEditModal && <EditBookingModal />}
@@ -2081,7 +2067,7 @@ Hotel Management`;
                 <div className="flex items-center justify-center gap-4">
                   <Link
                     href="/admin/book-room"
-                    className="px-6 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
+                    className="px-6 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
                   >
                     Create New Booking
                   </Link>
@@ -2125,7 +2111,7 @@ Hotel Management`;
                   >
                     {/* Simplified grid view card */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-10 h-10 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                         {booking.guest_name
                           ?.split(" ")
                           .map((n) => n[0])

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Shield, ArrowLeft, Home } from "lucide-react";
+import { Shield, Home } from "lucide-react";
 
 export default function UnauthorizedPage() {
   return (

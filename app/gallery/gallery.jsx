@@ -692,7 +692,7 @@ const Gallery = () => {
             {/* Image Content */}
             <div className="flex flex-col lg:flex-row h-full">
               {/* Image */}
-              <div className="lg:w-2/3 relative min-h-[400px] lg:min-h-0">
+              <div className="lg:w-2/3 relative min-h-100 lg:min-h-0">
                 {(() => {
                   const selectedImg = filteredImages.find(
                     (img) => img.id === selectedImage

@@ -16,10 +16,7 @@ import {
   RefreshCw,
   ChevronDown,
   CheckCircle,
-  XCircle,
-  MoreVertical,
   Calendar,
-  Tag,
   Check,
 } from "lucide-react";
 import supabase from "../../lib/supabase";
@@ -40,9 +37,6 @@ const categories = [
   "event center",
   "dining",
 ];
-
-// Status options
-const statusOptions = ["all", "active", "inactive"];
 
 export default function GalleryPage() {
   const router = useRouter();
@@ -104,7 +98,6 @@ export default function GalleryPage() {
         .eq("id", user.id)
         .single();
 
-      // ❌ Not admin → unauthorized
       if (userError || userData?.user_role !== "admin") {
         router.replace("/unauthorized");
         return;
@@ -446,7 +439,7 @@ export default function GalleryPage() {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+            <div className="w-full h-full flex items-center justify-center bg-lineart-to-br from-gray-800 to-gray-900">
               <ImageIcon className="w-12 h-12 text-gray-600" />
             </div>
           )}
@@ -467,7 +460,7 @@ export default function GalleryPage() {
           </div>
 
           {/* Overlay Actions */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
             <div className="flex gap-2 w-full">
               <button
                 onClick={() => {
@@ -1090,7 +1083,7 @@ export default function GalleryPage() {
             <p className="text-gray-300 mb-6">
               Are you sure you want to delete the gallery{" "}
               <span className="font-semibold text-white">
-                "{galleryToDelete.title}"
+                &quot;{galleryToDelete.title}&quot;
               </span>
               ? This action cannot be undone and all images will be removed.
             </p>
@@ -1190,7 +1183,7 @@ export default function GalleryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Modals */}
       {showAddModal && <AddGalleryModal />}
       {showViewModal && <ViewGalleryModal />}
@@ -1252,7 +1245,7 @@ export default function GalleryPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button
                     onClick={() => setShowAddModal(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg cursor-pointer"
+                    className="flex items-center gap-2 px-6 py-3 bg-linear-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg cursor-pointer"
                   >
                     <Plus className="w-5 h-5" />
                     Add Gallery

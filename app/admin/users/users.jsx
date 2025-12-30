@@ -54,7 +54,7 @@ import {
 import Link from "next/link";
 import Sidebar from "@/app/_components/admin/Sidebar";
 import supabase from "../../lib/supabase";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { useRouter } from "next/navigation";
 
 // User status options

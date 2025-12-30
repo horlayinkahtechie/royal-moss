@@ -4,18 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "../../lib/supabase";
 import Image from "next/image";
-import Link from "next/link";
 import {
   Star,
   Users,
   Maximize2,
   MapPin,
-  ArrowRight,
   Shield,
   Wifi,
   Coffee,
   Wind,
-  Filter,
   Search,
   SlidersHorizontal,
   ChevronDown,

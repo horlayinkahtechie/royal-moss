@@ -10,7 +10,6 @@ import {
   Mail,
   Lock,
   ArrowRight,
-  Hotel,
   AlertCircle,
   CheckCircle,
 } from "lucide-react";

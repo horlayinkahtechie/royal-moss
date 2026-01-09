@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Royal Moss is a full-featured hotel booking website that allows customers to book and pay for rooms online with ease. The platform combines a smooth customer booking experience with a powerful admin management system for handling hotel operations efficiently.
 
-## Getting Started
+**Project Overview**
+Royal Moss enables guests to browse available rooms, make reservations, and complete payments securely using the Paystack payment gateway. Both customers and administrators receive instant email notifications after a successful booking, ensuring clear communication and transparency.
 
-First, run the development server:
+The system also provides hotel administrators with detailed insights into bookings, revenue, occupancy rates, and active stays through a comprehensive dashboard.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+**Customer Features**
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Customers can:**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Browse available hotel rooms
+- Book rooms online
+- Pay securely using the Paystack payment gateway
+- Receive booking confirmation emails
+- Get notified about their booking details via email
+- Enjoy a responsive, sleek, and user-friendly interface across all devices
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Admin Management System**
 
-## Learn More
+**Dashboard Overview**
 
-To learn more about Next.js, take a look at the following resources:
+**The admin dashboard provides real-time insights, including:**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Total bookings overview
+- Revenue statistics
+- Occupancy rate
+- Active stays
+- Five most recent bookings
+- Revenue chart visualization
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Bookings Management**
 
-## Deploy on Vercel
+**From the bookings page, admins can:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- View detailed booking information for all customers
+- Book rooms for walk-in customers
+- Check in guests
+- Check out guests
+- Monitor booking history and current stays
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Room Management**
+
+**Admins can:**
+
+- View all rooms
+- Add new rooms
+- Update and manage existing rooms
+- Check room availability in real time
+
+**Gallery Management**
+
+**Admins can:**
+
+- Upload hotel gallery images
+- View and manage uploaded gallery content
+
+**Analytics & Users**
+- View detailed analytics related to hotel performance
+- Manage and view registered users
+
+**Notifications System**
+- Automatic email notifications sent to both admin and customer upon successful booking
+- Keeps all parties informed and updated in real time
+
+Royal Moss is designed to streamline hotel operations while offering guests a seamless booking experience, combining secure payments, real-time updates, and powerful administrative controls in one platform.

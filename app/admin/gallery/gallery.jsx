@@ -18,6 +18,9 @@ import {
   CheckCircle,
   Calendar,
   Check,
+  Link,
+  Upload,
+  Radio,
 } from "lucide-react";
 import supabase from "../../lib/supabase";
 import { format } from "date-fns";
@@ -75,10 +78,21 @@ export default function GalleryPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState([]);
 
+  // Upload type states
+  const [uploadType, setUploadType] = useState("url"); // "url" or "file"
+  const [imageFiles, setImageFiles] = useState([]);
+
+  // Real-time subscription state
+  const [subscription, setSubscription] = useState(null);
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
   const [totalItems, setTotalItems] = useState(0);
+
+  // Realtime sync state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
 
   useEffect(() => {
     const checkAdminRole = async () => {
@@ -105,12 +119,182 @@ export default function GalleryPage() {
 
       setLoading(false);
       fetchGalleries();
+      setupRealtimeSubscription();
     };
 
     checkAdminRole();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
   }, [router]);
 
-  // Fetch galleries from Supabase
+  // Setup real-time subscription
+  const setupRealtimeSubscription = () => {
+    const channel = supabase
+      .channel("gallery-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen to all events: INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "gallery",
+        },
+        (payload) => {
+          console.log("Real-time update received:", payload);
+          handleRealtimeUpdate(payload);
+        }
+      )
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+        if (status === "SUBSCRIBED") {
+          console.log("✅ Successfully subscribed to gallery changes");
+        }
+      });
+
+    setSubscription(channel);
+  };
+
+  // Handle real-time updates
+  const handleRealtimeUpdate = (payload) => {
+    setIsSyncing(true);
+
+    switch (payload.eventType) {
+      case "INSERT":
+        console.log("New gallery added:", payload.new);
+        handleNewGallery(payload.new);
+        break;
+      case "UPDATE":
+        console.log("Gallery updated:", payload.new);
+        handleUpdatedGallery(payload.new);
+        break;
+      case "DELETE":
+        console.log("Gallery deleted:", payload.old);
+        handleDeletedGallery(payload.old.id);
+        break;
+    }
+
+    setLastUpdate(new Date());
+
+    // Hide syncing indicator after a short delay
+    setTimeout(() => setIsSyncing(false), 500);
+  };
+
+  // Handle new gallery insertion
+  const handleNewGallery = (newGalleryData) => {
+    // Process image_urls to ensure it's always an array
+    const processedGallery = {
+      ...newGalleryData,
+      image_url: Array.isArray(newGalleryData.image_url)
+        ? newGalleryData.image_url
+        : newGalleryData.image_url
+        ? [newGalleryData.image_url]
+        : [],
+    };
+
+    // Check if gallery already exists (to prevent duplicates)
+    const exists = galleries.some(
+      (gallery) => gallery.id === processedGallery.id
+    );
+    if (!exists) {
+      setGalleries((prev) => {
+        const newGalleries = [processedGallery, ...prev];
+        applyFiltersAndSearch(newGalleries);
+        return newGalleries;
+      });
+      setTotalItems((prev) => prev + 1);
+    }
+  };
+
+  // Handle gallery update
+  const handleUpdatedGallery = (updatedGalleryData) => {
+    // Process image_urls
+    const processedGallery = {
+      ...updatedGalleryData,
+      image_url: Array.isArray(updatedGalleryData.image_url)
+        ? updatedGalleryData.image_url
+        : updatedGalleryData.image_url
+        ? [updatedGalleryData.image_url]
+        : [],
+    };
+
+    setGalleries((prev) => {
+      const newGalleries = prev.map((gallery) =>
+        gallery.id === processedGallery.id ? processedGallery : gallery
+      );
+      applyFiltersAndSearch(newGalleries);
+
+      // Update selected gallery if it's currently being viewed/edited
+      if (selectedGallery && selectedGallery.id === processedGallery.id) {
+        setSelectedGallery(processedGallery);
+      }
+      if (editGallery && editGallery.id === processedGallery.id) {
+        setEditGallery(processedGallery);
+      }
+
+      return newGalleries;
+    });
+  };
+
+  // Handle gallery deletion
+  const handleDeletedGallery = (deletedId) => {
+    setGalleries((prev) => {
+      const newGalleries = prev.filter((gallery) => gallery.id !== deletedId);
+      applyFiltersAndSearch(newGalleries);
+      return newGalleries;
+    });
+    setTotalItems((prev) => prev - 1);
+
+    // Close modals if they're showing the deleted gallery
+    if (selectedGallery && selectedGallery.id === deletedId) {
+      setShowViewModal(false);
+      setSelectedGallery(null);
+    }
+    if (editGallery && editGallery.id === deletedId) {
+      setShowEditModal(false);
+      setEditGallery(null);
+    }
+    if (galleryToDelete && galleryToDelete.id === deletedId) {
+      setShowDeleteModal(false);
+      setGalleryToDelete(null);
+    }
+  };
+
+  // Apply filters and search to galleries
+  const applyFiltersAndSearch = (galleryList) => {
+    let filtered = [...galleryList];
+
+    // Apply category filter
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(
+        (gallery) => gallery.category === selectedCategory
+      );
+    }
+
+    // Apply status filter
+    if (selectedStatus !== "all") {
+      filtered = filtered.filter(
+        (gallery) => gallery.status === selectedStatus
+      );
+    }
+
+    // Apply search
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (gallery) =>
+          gallery.title.toLowerCase().includes(query) ||
+          (gallery.caption && gallery.caption.toLowerCase().includes(query))
+      );
+    }
+
+    setFilteredGalleries(filtered);
+  };
+
+  // Fetch galleries from Supabase (initial load only)
   const fetchGalleries = async () => {
     try {
       setLoading(true);
@@ -161,6 +345,7 @@ export default function GalleryPage() {
 
       setGalleries(processedGalleries);
       setFilteredGalleries(processedGalleries);
+      setLastUpdate(new Date());
     } catch (error) {
       console.error("Error fetching galleries:", error);
     } finally {
@@ -168,16 +353,17 @@ export default function GalleryPage() {
     }
   };
 
+  // Handle filter changes with real-time updates
   useEffect(() => {
-    fetchGalleries();
-  }, [currentPage, selectedCategory, selectedStatus, searchQuery]);
+    applyFiltersAndSearch(galleries);
+  }, [selectedCategory, selectedStatus, searchQuery, galleries]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, selectedStatus, searchQuery]);
 
-  // Handle file uploads
+  // Handle file upload to Supabase Storage
   const handleFileUpload = async (files) => {
     if (!files || files.length === 0) return [];
 
@@ -186,6 +372,29 @@ export default function GalleryPage() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+
+      // Validate file type
+      const validTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+      ];
+      if (!validTypes.includes(file.type)) {
+        alert(
+          `File ${file.name} is not a valid image type. Please upload JPG, PNG, or WebP files.`
+        );
+        continue;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        alert(`File ${file.name} is too large. Maximum size is 5MB.`);
+        continue;
+      }
+
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random()
         .toString(36)
@@ -194,7 +403,7 @@ export default function GalleryPage() {
 
       try {
         const { error: uploadError } = await supabase.storage
-          .from("gallery-images") // Make sure this bucket exists
+          .from("gallery-images")
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
@@ -208,6 +417,7 @@ export default function GalleryPage() {
         setUploadProgress(((i + 1) / files.length) * 100);
       } catch (error) {
         console.error("Error uploading file:", error);
+        alert(`Failed to upload ${file.name}: ${error.message}`);
       }
     }
 
@@ -216,22 +426,68 @@ export default function GalleryPage() {
     return uploadedUrls;
   };
 
+  // Handle file selection for upload
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    setImageFiles(files);
+  };
+
   // Add new gallery
   const handleAddGallery = async () => {
     try {
-      if (!newGallery.title.trim() || newGallery.image_url.length === 0) {
-        alert("Title and at least one image are required");
+      if (!newGallery.title.trim()) {
+        alert("Title is required");
         return;
       }
 
-      // Filter out empty image URLs
-      const filteredImageUrls = newGallery.image_url.filter(
-        (url) => url.trim() !== ""
-      );
+      let imageUrls = [];
 
-      if (filteredImageUrls.length === 0) {
-        alert("Please add at least one valid image URL");
-        return;
+      // Handle URL uploads
+      if (uploadType === "url") {
+        // Filter out empty image URLs
+        const filteredImageUrls = newGallery.image_url.filter(
+          (url) => url.trim() !== ""
+        );
+
+        if (filteredImageUrls.length === 0) {
+          alert("Please add at least one valid image URL");
+          return;
+        }
+
+        // Validate URLs
+        const validUrls = filteredImageUrls.filter((url) => {
+          try {
+            new URL(url);
+            return true;
+          } catch {
+            return false;
+          }
+        });
+
+        if (validUrls.length === 0) {
+          alert("Please enter valid image URLs");
+          return;
+        }
+
+        imageUrls = filteredImageUrls;
+      }
+      // Handle file uploads
+      else if (uploadType === "file") {
+        if (imageFiles.length === 0) {
+          alert("Please select at least one image file to upload");
+          return;
+        }
+
+        setUploading(true);
+        const uploadedUrls = await handleFileUpload(imageFiles);
+
+        if (uploadedUrls.length === 0) {
+          alert("No images were successfully uploaded");
+          setUploading(false);
+          return;
+        }
+
+        imageUrls = uploadedUrls;
       }
 
       const galleryData = {
@@ -239,7 +495,7 @@ export default function GalleryPage() {
         caption: newGallery.caption.trim(),
         category: newGallery.category,
         status: newGallery.status,
-        image_url: filteredImageUrls,
+        image_url: imageUrls,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -248,21 +504,23 @@ export default function GalleryPage() {
 
       if (error) throw error;
 
+      // Don't manually update state - real-time will handle it
       alert("Gallery added successfully!");
       setShowAddModal(false);
       resetNewGalleryForm();
-      fetchGalleries();
     } catch (error) {
       console.error("Error adding gallery:", error);
       alert("Failed to add gallery: " + error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
   // Update gallery
   const handleUpdateGallery = async () => {
     try {
-      if (!editGallery.title.trim() || editGallery.image_url.length === 0) {
-        alert("Title and at least one image are required");
+      if (!editGallery.title.trim()) {
+        alert("Title is required");
         return;
       }
 
@@ -292,9 +550,9 @@ export default function GalleryPage() {
 
       if (error) throw error;
 
+      // Don't manually update state - real-time will handle it
       alert("Gallery updated successfully!");
       setShowEditModal(false);
-      fetchGalleries();
     } catch (error) {
       console.error("Error updating gallery:", error);
       alert("Failed to update gallery: " + error.message);
@@ -311,10 +569,10 @@ export default function GalleryPage() {
 
       if (error) throw error;
 
+      // Don't manually update state - real-time will handle it
       alert("Gallery deleted successfully!");
       setShowDeleteModal(false);
       setGalleryToDelete(null);
-      fetchGalleries();
     } catch (error) {
       console.error("Error deleting gallery:", error);
       alert("Failed to delete gallery: " + error.message);
@@ -331,6 +589,8 @@ export default function GalleryPage() {
       image_url: [""],
     });
     setUploadedFiles([]);
+    setImageFiles([]);
+    setUploadType("url");
   };
 
   // Add new image URL field
@@ -367,6 +627,12 @@ export default function GalleryPage() {
     } catch {
       return "N/A";
     }
+  };
+
+  // Format time for last update
+  const formatTime = (date) => {
+    if (!date) return "Never";
+    return format(date, "HH:mm:ss");
   };
 
   // Status Badge Component
@@ -698,53 +964,170 @@ export default function GalleryPage() {
               </div>
             </div>
 
-            {/* Image URLs */}
+            {/* Upload Type Selection */}
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <label className="block text-sm font-medium text-gray-300">
-                  Image URLs *
-                </label>
+              <label className="block text-sm font-medium text-gray-300 mb-4">
+                Add Images *
+              </label>
+
+              {/* Upload Type Tabs */}
+              <div className="flex gap-4 mb-6">
                 <button
                   type="button"
-                  onClick={addImageUrlField}
-                  className="text-sm text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-1"
+                  onClick={() => {
+                    setUploadType("url");
+                    setImageFiles([]);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 flex-1 ${
+                    uploadType === "url"
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-900/50 text-gray-400 hover:bg-gray-700/50"
+                  } cursor-pointer`}
                 >
-                  <Plus className="w-4 h-4" />
-                  Add URL
+                  <Link className="w-5 h-5" />
+                  <span>Image URL</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadType("file");
+                    setNewGallery({ ...newGallery, image_url: [""] });
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 flex-1 ${
+                    uploadType === "file"
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-900/50 text-gray-400 hover:bg-gray-700/50"
+                  } cursor-pointer`}
+                >
+                  <Upload className="w-5 h-5" />
+                  <span>Upload File</span>
                 </button>
               </div>
 
-              <div className="space-y-3">
-                {newGallery.image_url.map((url, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={url}
-                        onChange={(e) => updateImageUrl(index, e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="https://example.com/image.jpg"
-                      />
-                    </div>
-                    {newGallery.image_url.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeImageUrlField(index)}
-                        className="p-2 text-red-400 hover:text-red-300 cursor-pointer"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
+              {/* URL Upload Section */}
+              {uploadType === "url" && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Image URLs *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addImageUrlField}
+                      className="text-sm text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add URL
+                    </button>
                   </div>
-                ))}
-              </div>
 
-              <p className="text-xs text-gray-400 mt-2">
-                Add image URLs (JPG, PNG, or WebP formats recommended)
-              </p>
+                  <div className="space-y-3">
+                    {newGallery.image_url.map((url, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={url}
+                            onChange={(e) =>
+                              updateImageUrl(index, e.target.value)
+                            }
+                            className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="https://example.com/image.jpg"
+                          />
+                        </div>
+                        {newGallery.image_url.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeImageUrlField(index)}
+                            className="p-2 text-red-400 hover:text-red-300 cursor-pointer"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-gray-400 mt-2">
+                    Add image URLs (JPG, PNG, or WebP formats recommended)
+                  </p>
+                </div>
+              )}
+
+              {/* File Upload Section */}
+              {uploadType === "file" && (
+                <div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Upload Images *
+                    </label>
+                    <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-purple-500 transition-colors">
+                      <input
+                        type="file"
+                        id="file-upload"
+                        multiple
+                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="file-upload"
+                        className="cursor-pointer flex flex-col items-center justify-center"
+                      >
+                        <Upload className="w-12 h-12 text-gray-500 mb-4" />
+                        <p className="text-gray-300 mb-2">
+                          Drag & drop images here or click to browse
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          JPG, PNG, WebP, GIF • Max 5MB per image
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Selected Files Preview */}
+                  {imageFiles.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-3">
+                        Selected Files ({imageFiles.length})
+                      </h4>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {imageFiles.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between bg-gray-900/30 p-3 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3">
+                              <ImageIcon className="w-5 h-5 text-gray-400" />
+                              <span className="text-gray-300 text-sm truncate">
+                                {file.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newFiles = [...imageFiles];
+                                newFiles.splice(index, 1);
+                                setImageFiles(newFiles);
+                              }}
+                              className="text-red-400 hover:text-red-300 cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Upload Progress (if uploading) */}
+            {/* Upload Progress */}
             {uploading && (
               <div className="space-y-2">
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -754,8 +1137,7 @@ export default function GalleryPage() {
                   />
                 </div>
                 <p className="text-sm text-gray-400 text-center">
-                  Uploading {uploadedFiles.length} file(s)...{" "}
-                  {uploadProgress.toFixed(0)}%
+                  Uploading images... {uploadProgress.toFixed(0)}%
                 </p>
               </div>
             )}
@@ -775,12 +1157,24 @@ export default function GalleryPage() {
                 onClick={handleAddGallery}
                 disabled={
                   !newGallery.title.trim() ||
-                  newGallery.image_url.some((url) => !url.trim())
+                  (uploadType === "url" &&
+                    newGallery.image_url.some((url) => !url.trim())) ||
+                  (uploadType === "file" && imageFiles.length === 0) ||
+                  uploading
                 }
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Plus className="w-4 h-4" />
-                Add Gallery
+                {uploading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Add Gallery
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -977,7 +1371,7 @@ export default function GalleryPage() {
                 </div>
               </div>
 
-              {/* Image URLs */}
+              {/* Image URLs (Edit modal only supports URL editing for simplicity) */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <label className="block text-sm font-medium text-gray-300">
@@ -1214,6 +1608,23 @@ export default function GalleryPage() {
                 </svg>
               </button>
             </div>
+
+            {/* Realtime Status Indicator */}
+            <div className="flex items-center gap-3">
+              {isSyncing && (
+                <div className="flex items-center gap-2 text-sm text-sky-400">
+                  <div className="w-3 h-3 bg-sky-500 rounded-full animate-pulse"></div>
+                  Syncing...
+                </div>
+              )}
+              <div className="text-xs text-gray-500">
+                Last update: {formatTime(lastUpdate)}
+              </div>
+              <div className="flex items-center gap-1 text-xs text-emerald-400">
+                <Radio className="w-3 h-3" />
+                <span>Live</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1415,6 +1826,11 @@ export default function GalleryPage() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">
                   Galleries ({filteredGalleries.length})
+                  {isSyncing && (
+                    <span className="ml-2 text-sm text-sky-400">
+                      • Updating...
+                    </span>
+                  )}
                 </h2>
                 <div className="flex items-center gap-4">
                   <button className="flex items-center gap-2 px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors cursor-pointer">

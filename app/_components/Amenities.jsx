@@ -16,7 +16,11 @@ import {
   Sun,
   Shield,
   Users,
+  House,
 } from "lucide-react";
+import { MdLocalLaundryService, MdRoom } from "react-icons/md";
+import { PiHairDryer } from "react-icons/pi";
+import { BiBall, BiBulb, BiFootball } from "react-icons/bi";
 
 const Amenities = () => {
   const [showLeftScroll, setShowLeftScroll] = useState(false);
@@ -30,8 +34,19 @@ const Amenities = () => {
       description: "Complimentary high-speed internet throughout the property",
     },
     {
+      icon: BiBulb,
+      title: "24/7 Power Supply",
+      description: "Complimentary high-speed internet throughout the property",
+    },
+    {
+      icon: House,
+      title: "Accomodation",
+      description:
+        "5-star restaurants & 24/7 room service with international cuisine",
+    },
+    {
       icon: Utensils,
-      title: "Fine Dining",
+      title: "Restaurant",
       description:
         "5-star restaurants & 24/7 room service with international cuisine",
     },
@@ -41,8 +56,8 @@ const Amenities = () => {
       description: "State-of-the-art gym with certified personal trainers",
     },
     {
-      icon: Coffee,
-      title: "Luxury Spa",
+      icon: House,
+      title: "Multi-purpose Hall",
       description: "Award-winning spa with professional therapists",
     },
     {
@@ -51,13 +66,18 @@ const Amenities = () => {
       description: "Complimentary valet service with secure parking",
     },
     {
-      icon: ConciergeBell,
-      title: "24/7 Concierge",
-      description: "Personalized service available anytime, day or night",
-    },
-    {
       icon: Wind,
       title: "Climate Control",
+      description: "Individual temperature control in every room",
+    },
+    {
+      icon: PiHairDryer,
+      title: "Unisex Salon",
+      description: "Individual temperature control in every room",
+    },
+    {
+      icon: MdLocalLaundryService,
+      title: "Laundry & Dry Cleaning",
       description: "Individual temperature control in every room",
     },
     {
@@ -66,8 +86,13 @@ const Amenities = () => {
       description: "Smart TVs with premium streaming services",
     },
     {
+      icon: BiFootball,
+      title: "Snooker Board",
+      description: "Individual temperature control in every room",
+    },
+    {
       icon: Wine,
-      title: "Bar & Lounge",
+      title: "Bar/VIP Lounge",
       description: "Signature cocktails and fine wines in elegant settings",
     },
     {

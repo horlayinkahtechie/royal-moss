@@ -11,6 +11,7 @@ import {
   Send,
   Heart,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 const Footer = () => {
@@ -24,12 +25,13 @@ const Footer = () => {
       { label: "Your Bookings", href: "/bookings" },
     ],
     Services: [
-      { label: "Concierge", href: "/services" },
-      { label: "Spa & Wellness", href: "/services" },
-      { label: "Fine Dining", href: "/services" },
-      { label: "Meeting Rooms", href: "/rooms" },
-      { label: "Clubing", href: "/services" },
       { label: "Book a Room", href: "/rooms" },
+      { label: "Gym", href: "/services" },
+      { label: "Restaurant", href: "/services" },
+      { label: "Multi-purpose Hall", href: "/multi-purpose-hall" },
+      { label: "Unisex Salon", href: "/services" },
+      { label: "Swimming Pool", href: "/services" },
+      { label: "Laundry & Dry Cleaning", href: "/services" },
     ],
     Support: [
       { label: "FAQ", href: "/faq" },
@@ -56,14 +58,18 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
           {/* Brand Column - Wider */}
           <div className="lg:col-span-2">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-linear-to-r from-sky-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">RM</span>
-              </div>
+            <Link href="/" className="flex items-center space-x-3 mb-6">
+              <Image
+                src="/images/royal-moss.jpg"
+                alt="Royal Moss Logo"
+                className="rounded-xl"
+                width={100}
+                height={100}
+              />
               <h2 className="text-3xl font-bold bg-linear-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 Royal Moss
               </h2>
-            </div>
+            </Link>
             <p className="text-gray-400 mb-8 text-lg leading-relaxed max-w-lg">
               Experience luxury redefined at our hotel. Where exceptional
               service meets unforgettable moments in the heart of Lagos.
@@ -152,7 +158,7 @@ const Footer = () => {
               <div className="flex items-center mb-2">
                 <MapPin className="w-5 h-5 text-sky-400 mr-3 shrink-0" />
                 <span className="text-gray-400">
-                  123 Luxury Avenue, Lagos Beach, FL 33139
+                  KLM 21, Iworo-Aradagun Road, Badagry (Moghoto)
                 </span>
               </div>
             </div>

@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import supabase from "../lib/supabase";
-import { Menu, X, LogOut, User } from "lucide-react";
+import { Menu, X, LogOut, User, Crown } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -56,7 +57,7 @@ const Navbar = () => {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [supabase.auth]);
+  }, []);
 
   const handleSignOut = async () => {
     setIsOpen(false);
@@ -77,15 +78,29 @@ const Navbar = () => {
   return (
     <nav className="fixed w-full z-50 py-4 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white/90 backdrop-blur-md rounded-4xl shadow-lg border border-gray-200/80">
+        <div className="bg-white backdrop-blur-md rounded-4xl shadow-lg border border-gray-200/80">
           <div className="px-6">
             <div className="flex justify-between items-center h-16">
-              {/* Logo */}
-              <div className="shrink-0">
-                <Link href="/">
-                  <h1 className="text-2xl font-bold text-sky-600 hover:text-sky-700 transition-colors">
-                    Royal Moss
-                  </h1>
+              {/* Logo with Text */}
+              <div className="shrink-0 flex items-center space-x-3">
+                <Link href="/" className="flex items-center space-x-3">
+                  <div className="">
+                    <Image
+                      src="/images/royal-moss.jpg"
+                      alt="Royal Moss Logo"
+                      className="rounded-2xl"
+                      width={100}
+                      height={100}
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xl font-bold text-gray-900 tracking-tight">
+                      Royal Moss
+                    </span>
+                    <span className="text-xs text-gray-500 font-medium tracking-wider">
+                      LUXURY RESORT
+                    </span>
+                  </div>
                 </Link>
               </div>
 
@@ -124,14 +139,6 @@ const Navbar = () => {
                     <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse"></div>
                   ) : user ? (
                     <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center">
-                          <User className="w-4 h-4 text-sky-600" />
-                        </div>
-                        <span className="text-sm text-gray-700 font-medium">
-                          {user.email?.split("@")[0]}
-                        </span>
-                      </div>
                       <button
                         onClick={handleSignOut}
                         className="flex items-center cursor-pointer px-4 py-2 bg-gray-100 text-gray-700 rounded-full font-medium hover:bg-gray-200 transition-colors duration-300"
@@ -171,9 +178,33 @@ const Navbar = () => {
               }`}
             >
               <div className="border-t border-gray-200 pt-4">
+                {/* Logo in mobile menu */}
+                <div className="flex items-center space-x-3 mb-4 px-4">
+                  <div className="relative">
+                    <Image
+                      src="/images/royal-moss.jpg"
+                      alt="Royal Moss Logo"
+                      className="rounded-xl"
+                      width={50}
+                      height={50}
+                    />
+                    <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5">
+                      <Crown className="w-2.5 h-2.5" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-gray-900">
+                      Royal Moss
+                    </span>
+                    <span className="text-xs text-gray-500 font-medium">
+                      LUXURY RESORT
+                    </span>
+                  </div>
+                </div>
+
                 {/* Scrollable container for navigation items */}
                 <div
-                  className="max-h-[calc(80vh-120px)] overflow-y-auto pr-2"
+                  className="max-h-[calc(80vh-160px)] overflow-y-auto pr-2"
                   style={{
                     scrollbarWidth: "thin",
                     scrollbarColor: "#cbd5e1 transparent",

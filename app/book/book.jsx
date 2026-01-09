@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import supabase from "../lib/supabase";
 import Image from "next/image";
+import { getGuestId, getGuestInfo, updateGuestInfo } from "../utils/guestUtils";
 import {
   Calendar,
   User,
@@ -21,7 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  LogIn,
+  Key,
 } from "lucide-react";
 import {
   format,
@@ -60,19 +61,15 @@ const formatPrice = (amount, includeK = false) => {
   }
 };
 
-// Helper function to extract numeric value from price (handles both formatted strings and numbers)
+// Helper function to extract numeric value from price
 const extractNumericPrice = (priceValue) => {
   if (priceValue === null || priceValue === undefined) return 0;
 
-  // If it's already a number, return it
   if (typeof priceValue === "number") return priceValue;
 
-  // If it's a string, parse it
   if (typeof priceValue === "string") {
-    // Remove currency symbol and any commas
     let cleanValue = priceValue.replace(/[₦,]/g, "").trim();
 
-    // Check for K, M, B suffixes
     if (cleanValue.endsWith("B") || cleanValue.endsWith("b")) {
       const number = parseFloat(cleanValue.slice(0, -1));
       return number * 1000000000;
@@ -83,12 +80,10 @@ const extractNumericPrice = (priceValue) => {
       const number = parseFloat(cleanValue.slice(0, -1));
       return number * 1000;
     } else {
-      // Just a plain number
       return parseFloat(cleanValue) || 0;
     }
   }
 
-  // If it's something else, try to convert to number
   return Number(priceValue) || 0;
 };
 
@@ -104,9 +99,9 @@ export default function Book() {
 
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [room, setRoom] = useState(null);
+  const [guestId, setGuestId] = useState(null);
 
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingReference, setBookingReference] = useState("");
@@ -119,6 +114,14 @@ export default function Book() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [paymentStatus, setPaymentStatus] = useState("pending");
   const [paymentError, setPaymentError] = useState("");
+  const [showCreateAccountModal, setShowCreateAccountModal] = useState(false);
+  const [createAccountData, setCreateAccountData] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "",
+    fullName: "",
+  });
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -130,6 +133,7 @@ export default function Book() {
     noOfGuests: 1,
     specialRequests: "",
     paymentMethod: "paystack",
+    createAccount: false,
   });
 
   // Calculate derived values
@@ -138,6 +142,17 @@ export default function Book() {
     totalAmount: 0,
   });
 
+  useEffect(() => {
+    // Get or create guest ID
+    const guestId = getGuestId();
+    setGuestId(guestId);
+
+    // Update guest info with email if available
+    if (user?.email) {
+      updateGuestInfo({ email: user.email, is_logged_in: true });
+    }
+  }, [user]);
+
   // PayStack Script Loader
   const [paystackLoaded, setPaystackLoaded] = useState(false);
   const paystackScriptRef = useRef(null);
@@ -145,14 +160,12 @@ export default function Book() {
   useEffect(() => {
     // Load PayStack script
     const loadPaystackScript = () => {
-      // Check if script is already loaded
       if (
         document.querySelector(
           'script[src="https://js.paystack.co/v1/inline.js"]'
         )
       ) {
         setPaystackLoaded(true);
-        console.log("PayStack script already loaded");
         return;
       }
 
@@ -161,12 +174,10 @@ export default function Book() {
       paystackScriptRef.current.async = true;
 
       paystackScriptRef.current.onload = () => {
-        console.log("PayStack script loaded successfully");
         setPaystackLoaded(true);
       };
 
       paystackScriptRef.current.onerror = () => {
-        console.error("Failed to load PayStack script");
         setPaymentError(
           "Payment service is currently unavailable. Please try again later."
         );
@@ -179,7 +190,6 @@ export default function Book() {
     loadPaystackScript();
 
     return () => {
-      // Clean up script on unmount
       if (
         paystackScriptRef.current &&
         document.body.contains(paystackScriptRef.current)
@@ -196,33 +206,26 @@ export default function Book() {
   }, [bookingSuccess]);
 
   useEffect(() => {
+    // Check if user is logged in (optional)
     const getUser = async () => {
       try {
-        setIsAuthLoading(true);
         const {
           data: { user },
-          error,
         } = await supabase.auth.getUser();
 
-        if (error) {
-          console.error("Error fetching user:", error);
-          setUser(null);
-        } else {
+        if (user) {
           setUser(user);
-
-          if (user) {
-            setFormData((prev) => ({
-              ...prev,
-              guestEmail: user.email || "",
-              guestName: user.user_metadata?.full_name || "",
-            }));
-          }
+          // Pre-fill form with user data if logged in
+          setFormData((prev) => ({
+            ...prev,
+            guestEmail: user.email || "",
+            guestName: user.user_metadata?.full_name || "",
+          }));
         }
       } catch (error) {
         console.error("Error fetching user:", error);
-        setUser(null);
       } finally {
-        setIsAuthLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -255,20 +258,25 @@ export default function Book() {
 
       const data = await response.json();
 
-      if (data.status) {
+      if (data.success) {
         setPaymentStatus("completed");
+
         // Update booking status in database
         await updateBookingPaymentStatus(reference, "paid");
 
         // Show success message
         setBookingSuccess(true);
+        return true;
       } else {
         setPaymentStatus("failed");
-        alert("Payment verification failed. Please contact support.");
+        alert(`Payment verification failed: ${data.error || "Unknown error"}`);
+        return false;
       }
     } catch (error) {
       console.error("Payment verification error:", error);
       setPaymentStatus("failed");
+      alert("Payment verification error. Please contact support.");
+      return false;
     }
   };
 
@@ -297,7 +305,6 @@ export default function Book() {
       const diffTime = Math.abs(checkOut - checkIn);
       const noOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      // Extract numeric price
       const pricePerNight = extractNumericPrice(roomPrice);
       const totalAmount = noOfNights * pricePerNight;
 
@@ -335,12 +342,10 @@ export default function Book() {
     }
   };
 
-  // Helper function to normalize dates (remove time component)
   const normalizeDate = (date) => {
     return startOfDay(new Date(date));
   };
 
-  // Check if a specific date is within any booked interval
   const isDateBooked = (date) => {
     const checkDate = normalizeDate(date);
 
@@ -348,7 +353,6 @@ export default function Book() {
       const bookedStart = normalizeDate(booking.check_in_date);
       const bookedEnd = normalizeDate(booking.check_out_date);
 
-      // Check if date is within booked interval (check-in inclusive, check-out exclusive)
       if (checkDate >= bookedStart && checkDate < bookedEnd) {
         return true;
       }
@@ -357,7 +361,6 @@ export default function Book() {
     return false;
   };
 
-  // Check if a date range overlaps with any existing booking
   const validateDateRange = (checkIn, checkOut) => {
     const normalizedCheckIn = normalizeDate(checkIn);
     const normalizedCheckOut = normalizeDate(checkOut);
@@ -366,7 +369,6 @@ export default function Book() {
       const bookedStart = normalizeDate(booking.check_in_date);
       const bookedEnd = normalizeDate(booking.check_out_date);
 
-      // Check for any overlap
       if (
         (normalizedCheckIn >= bookedStart && normalizedCheckIn < bookedEnd) ||
         (normalizedCheckOut > bookedStart && normalizedCheckOut <= bookedEnd) ||
@@ -388,13 +390,11 @@ export default function Book() {
   const validateDates = (checkIn, checkOut) => {
     setDateValidationError("");
 
-    // Basic validation
     if (checkOut <= checkIn) {
       setDateValidationError("Check-out date must be after check-in date");
       return false;
     }
 
-    // Validate against existing bookings
     const validation = validateDateRange(checkIn, checkOut);
     if (!validation.isValid) {
       setDateValidationError(validation.message);
@@ -414,10 +414,10 @@ export default function Book() {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -425,7 +425,6 @@ export default function Book() {
     const dateStr = format(date, "yyyy-MM-dd");
 
     if (type === "checkIn") {
-      // If check-out is before new check-in, reset check-out
       if (
         formData.checkOutDate &&
         normalizeDate(formData.checkOutDate) <= date
@@ -469,7 +468,6 @@ export default function Book() {
       if (error) throw error;
 
       if (data) {
-        // Get images array safely
         let images = [];
         if (data.room_image) {
           if (Array.isArray(data.room_image)) {
@@ -479,7 +477,6 @@ export default function Book() {
               const parsed = JSON.parse(data.room_image);
               images = Array.isArray(parsed) ? parsed : [parsed];
             } catch (e) {
-              // If it's a single URL string
               images = [data.room_image];
             }
           }
@@ -512,15 +509,51 @@ export default function Book() {
     }
   };
 
-  // Handle user authentication
-  const handleLogin = async () => {
+  // Create account after successful booking
+  const createUserAccount = async (email, password, fullName) => {
     try {
-      // You can redirect to login page or show login modal
-      router.push("/login?redirect=/book");
+      setIsCreatingAccount(true);
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          emailRedirectTo: `${window.location.origin}/bookings`,
+        },
+      });
+
+      if (error) throw error;
+
+      // Store user info in users table
+      if (data.user) {
+        const { error: profileError } = await supabase.from("users").insert({
+          id: data.user.id,
+          email: data.user.email,
+          full_name: fullName,
+          user_role: "guest",
+          created_at: new Date().toISOString(),
+        });
+
+        if (profileError) {
+          console.error("Error creating user profile:", profileError);
+        }
+      }
+
+      return { success: true, data };
     } catch (error) {
-      console.error("Login error:", error);
-      alert("Please login to continue with booking");
+      console.error("Error creating account:", error);
+      return { success: false, error: error.message };
+    } finally {
+      setIsCreatingAccount(false);
     }
+  };
+
+  // Handle user login
+  const handleLogin = () => {
+    router.push("/login?redirect=/book");
   };
 
   // PayStack Payment Handler
@@ -530,13 +563,11 @@ export default function Book() {
     bookingRef
   ) => {
     return new Promise((resolve, reject) => {
-      // Wait a bit more to ensure PayStack is fully loaded
       setTimeout(() => {
         if (
           !window.PaystackPop ||
           typeof window.PaystackPop.setup !== "function"
         ) {
-          console.error("PayStack not available or not properly loaded");
           reject(
             new Error(
               "PayStack payment service is not available. Please refresh and try again."
@@ -545,15 +576,13 @@ export default function Book() {
           return;
         }
 
-        console.log("Setting up PayStack payment with ref:", bookingRef);
-
         try {
           const handler = window.PaystackPop.setup({
             key:
               process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
-              "pk_test_YOUR_TEST_KEY", // Make sure this is set in your .env.local
+              "pk_test_YOUR_TEST_KEY",
             email: formData.guestEmail,
-            amount: totalAmount * 100, // Convert to kobo
+            amount: totalAmount * 100,
             currency: "NGN",
             ref: bookingRef,
             metadata: {
@@ -566,9 +595,6 @@ export default function Book() {
               no_of_guests: formData.noOfGuests,
             },
             callback: function (response) {
-              console.log("PayStack callback response:", response);
-
-              // Handle the response in the main async function
               if (response.status === "success") {
                 resolve(response);
               } else {
@@ -576,30 +602,42 @@ export default function Book() {
               }
             },
             onClose: function () {
-              console.log("Payment window closed by user");
               reject(new Error("Payment cancelled by user"));
             },
           });
 
-          console.log("Opening PayStack iframe...");
           handler.openIframe();
         } catch (error) {
-          console.error("Error setting up PayStack:", error);
           reject(new Error("Failed to initialize payment. Please try again."));
         }
-      }, 500); // Small delay to ensure everything is ready
+      }, 500);
     });
+  };
+
+  const sendBookingEmails = async (bookingData) => {
+    try {
+      const response = await fetch("/api/booking-confirmation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(bookingData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log("Booking emails sent successfully");
+      } else {
+        console.error("Failed to send booking emails:", result.error);
+      }
+    } catch (error) {
+      console.error("Error sending booking emails:", error);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Check if user is authenticated
-    if (!user) {
-      alert("Please login to continue with booking");
-      handleLogin();
-      return;
-    }
 
     // Check if PayStack is loaded
     if (!paystackLoaded) {
@@ -636,11 +674,37 @@ export default function Book() {
       return;
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.guestEmail)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    // Validate phone number
+    if (!formData.guestPhone.trim()) {
+      alert("Please enter your phone number");
+      return;
+    }
+
     setIsSubmitting(true);
     setPaymentError("");
     let bookingRef;
 
     try {
+      // Get or create guest ID
+      const currentGuestId = getGuestId();
+      setGuestId(currentGuestId);
+
+      // Update guest info with booking details
+      updateGuestInfo({
+        last_booking: new Date().toISOString(),
+        email: formData.guestEmail,
+        name: formData.guestName,
+        phone: formData.guestPhone,
+        total_bookings: (getGuestInfo()?.total_bookings || 0) + 1,
+      });
+
       bookingRef = generateBookingReference();
       setBookingReference(bookingRef);
 
@@ -649,18 +713,17 @@ export default function Book() {
       const pricePerNight = extractNumericPrice(roomPrice);
       const totalAmount = noOfNights * pricePerNight;
 
-      // Get the room image - try multiple sources
+      // Get the room image
       let roomImageToSave = roomImage || "";
       if (!roomImageToSave && room?.images?.length > 0) {
         roomImageToSave = room.images[0];
       }
 
-      // Prepare booking data with correct field names
+      // Prepare booking data
       const bookingFormData = {
         check_in_date: formData.checkInDate,
         check_out_date: formData.checkOutDate,
         room_number: room?.roomNumber || `Room ${roomId?.slice(-4)}`,
-        user_id: user.id,
         guest_name: formData.guestName,
         guest_email: formData.guestEmail,
         guest_phone: formData.guestPhone,
@@ -676,22 +739,66 @@ export default function Book() {
         special_requests: formData.specialRequests,
         booking_id: bookingRef,
         created_at: new Date().toISOString(),
+        user_id: user?.id || currentGuestId,
+        booked_as_guest: !user,
       };
 
       console.log("Booking data prepared:", bookingFormData);
 
-      // Store in localStorage BEFORE payment (for recovery if needed)
+      // Store guest details in localStorage
       if (typeof window !== "undefined") {
+        const guestDetails = {
+          id: currentGuestId,
+          email: formData.guestEmail,
+          name: formData.guestName,
+          phone: formData.guestPhone,
+          last_booking_date: new Date().toISOString(),
+          bookings_count:
+            JSON.parse(localStorage.getItem("guest_bookings_count") || "0") + 1,
+        };
+
+        localStorage.setItem("guest_details", JSON.stringify(guestDetails));
+
+        // Store individual booking in guest's booking history
+        const guestBookings = JSON.parse(
+          localStorage.getItem("guest_bookings") || "[]"
+        );
+        guestBookings.push({
+          booking_ref: bookingRef,
+          room_title: room?.title || roomTitle,
+          check_in_date: formData.checkInDate,
+          check_out_date: formData.checkOutDate,
+          total_amount: totalAmount,
+          booking_date: new Date().toISOString(),
+          status: "pending",
+          user_id: currentGuestId,
+          guest_email: formData.guestEmail,
+          guest_name: formData.guestName,
+          room_number: room?.roomNumber,
+          room_image: roomImageToSave,
+        });
+
+        localStorage.setItem("guest_bookings", JSON.stringify(guestBookings));
         localStorage.setItem(
-          `booking_${bookingRef}`,
-          JSON.stringify(bookingFormData)
+          "guest_bookings_count",
+          guestBookings.length.toString()
         );
       }
 
-      // Process payment based on selected method
-      if (formData.paymentMethod === "paystack") {
-        console.log("Initiating PayStack payment...");
+      // Store in localStorage BEFORE payment
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          `booking_${bookingRef}`,
+          JSON.stringify({
+            ...bookingFormData,
+            createAccount: formData.createAccount,
+            user_id: currentGuestId,
+          })
+        );
+      }
 
+      // Process payment
+      if (formData.paymentMethod === "paystack") {
         // Make sure PayStack is available
         if (!window.PaystackPop) {
           throw new Error(
@@ -707,8 +814,6 @@ export default function Book() {
         );
 
         if (paymentResponse.status === "success") {
-          console.log("PayStack payment successful, verifying...");
-
           // Verify payment on backend
           const verifyResponse = await fetch("/api/verify-payment", {
             method: "POST",
@@ -720,7 +825,7 @@ export default function Book() {
 
           const verifyData = await verifyResponse.json();
 
-          if (verifyData.status && verifyData.data.status === "success") {
+          if (verifyData.success && verifyData.data.status === "success") {
             // Add payment details to booking data
             const finalBookingData = {
               ...bookingFormData,
@@ -743,9 +848,47 @@ export default function Book() {
               throw new Error("Failed to save booking after payment");
             }
 
-            // Clean up localStorage
+            // Update localStorage booking with success status
             if (typeof window !== "undefined") {
+              // Update guest booking status
+              const guestBookings = JSON.parse(
+                localStorage.getItem("guest_bookings") || "[]"
+              );
+              const updatedBookings = guestBookings.map((booking) =>
+                booking.booking_ref === bookingRef
+                  ? { ...booking, status: "confirmed", payment_status: "paid" }
+                  : booking
+              );
+              localStorage.setItem(
+                "guest_bookings",
+                JSON.stringify(updatedBookings)
+              );
+
+              // Clean up temporary storage
               localStorage.removeItem(`booking_${bookingRef}`);
+            }
+
+            // ✅ SEND BOOKING EMAILS TO USER AND ADMIN
+            try {
+              await sendBookingEmails(finalBookingData);
+              console.log("Booking confirmation emails sent");
+            } catch (emailError) {
+              console.error(
+                "Email sending failed, but booking is saved:",
+                emailError
+              );
+              // Continue - email failure shouldn't break booking
+            }
+
+            // Ask about creating account (if not logged in and user chose to create account)
+            if (!user && formData.createAccount) {
+              setShowCreateAccountModal(true);
+              setCreateAccountData({
+                email: formData.guestEmail,
+                fullName: formData.guestName,
+                password: "",
+                confirmPassword: "",
+              });
             }
 
             // Show success
@@ -754,7 +897,11 @@ export default function Book() {
             setPaymentStatus("completed");
             setIsSubmitting(false);
           } else {
-            throw new Error("Payment verification failed");
+            throw new Error(
+              `Payment verification failed: ${
+                verifyData.error || "Unknown error"
+              }`
+            );
           }
         } else {
           throw new Error("Payment failed");
@@ -782,9 +929,48 @@ export default function Book() {
       // Clean up on error
       if (typeof window !== "undefined" && bookingRef) {
         localStorage.removeItem(`booking_${bookingRef}`);
+
+        // Update guest booking status to failed
+        const guestBookings = JSON.parse(
+          localStorage.getItem("guest_bookings") || "[]"
+        );
+        const updatedBookings = guestBookings.map((booking) =>
+          booking.booking_ref === bookingRef
+            ? { ...booking, status: "failed", payment_status: "failed" }
+            : booking
+        );
+        localStorage.setItem("guest_bookings", JSON.stringify(updatedBookings));
       }
 
       setIsSubmitting(false);
+    }
+  };
+
+  // Handle account creation after booking
+  const handleCreateAccount = async () => {
+    if (createAccountData.password !== createAccountData.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    if (createAccountData.password.length < 6) {
+      alert("Password must be at least 6 characters");
+      return;
+    }
+
+    const result = await createUserAccount(
+      createAccountData.email,
+      createAccountData.password,
+      createAccountData.fullName
+    );
+
+    if (result.success) {
+      alert(
+        "Account created successfully! You can now login to manage your bookings."
+      );
+      setShowCreateAccountModal(false);
+    } else {
+      alert(`Failed to create account: ${result.error}`);
     }
   };
 
@@ -796,7 +982,6 @@ export default function Book() {
       const start = normalizeDate(booking.check_in_date);
       const end = normalizeDate(booking.check_out_date);
 
-      // Get all dates between check-in and check-out (excluding check-out date)
       let current = new Date(start);
       while (current < end) {
         bookedDates.add(format(current, "yyyy-MM-dd"));
@@ -995,7 +1180,7 @@ export default function Book() {
     return validImages.length > 0 ? validImages[0] : null;
   };
 
-  if (isLoading || isAuthLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-32 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1007,57 +1192,6 @@ export default function Book() {
       </div>
     );
   }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 pt-32 pb-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center cursor-pointer text-gray-600 hover:text-gray-900 mb-8 transition-colors group"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-            Back
-          </button>
-
-          <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 text-center">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-amber-100">
-              <LogIn className="w-12 h-12 text-amber-600" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              Login Required
-            </h1>
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-              You need to be logged in to complete your booking. Please login or
-              create an account to continue.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() =>
-                  router.push(
-                    "/login?redirect=" +
-                      window.location.pathname +
-                      window.location.search
-                  )
-                }
-                className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 transition-colors"
-              >
-                Login to Continue
-              </button>
-              <button
-                onClick={() => router.push("/")}
-                className="px-6 py-3 border cursor-pointer border-gray-300 text-gray-700 rounded-full font-semibold hover:border-gray-400 hover:bg-gray-50 transition-colors"
-              >
-                Back to Homepage
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (bookingSuccess) {
     return (
       <div className="min-h-screen bg-gray-50 pt-32 pb-20">
@@ -1087,7 +1221,7 @@ export default function Book() {
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-4">
                 {paymentStatus === "completed"
-                  ? "Payment Successful!"
+                  ? "Booking Confirmed!"
                   : "Processing Payment..."}
               </h1>
               <p className="text-lg text-gray-600 mb-8">
@@ -1177,6 +1311,43 @@ export default function Book() {
               </div>
             </div>
 
+            {/* Account Options */}
+            {!user && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <User className="w-5 h-5 mr-2 text-amber-600" />
+                  Create an Account (Optional)
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Create a free account to easily manage your bookings, view
+                  booking history, and get exclusive offers. Your existing
+                  booking will be linked to your account.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => {
+                      setCreateAccountData({
+                        email: formData.guestEmail,
+                        fullName: formData.guestName,
+                        password: "",
+                        confirmPassword: "",
+                      });
+                      setShowCreateAccountModal(true);
+                    }}
+                    className="px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-full font-semibold transition-colors"
+                  >
+                    Create Account
+                  </button>
+                  <button
+                    onClick={() => router.push("/")}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-full font-semibold hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                  >
+                    Continue as Guest
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => router.push("/")}
@@ -1184,12 +1355,22 @@ export default function Book() {
               >
                 Go to Homepage
               </button>
-              <button
-                onClick={() => router.push("/bookings")}
-                className="px-6 py-3 border cursor-pointer border-gray-300 text-gray-700 rounded-full font-semibold hover:border-gray-400 hover:bg-gray-50 transition-colors"
-              >
-                View My Bookings
-              </button>
+              {user && (
+                <button
+                  onClick={() => router.push("/bookings")}
+                  className="px-6 py-3 border cursor-pointer border-gray-300 text-gray-700 rounded-full font-semibold hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                >
+                  View My Bookings
+                </button>
+              )}
+              {!user && guestId && (
+                <button
+                  onClick={() => router.push(`/guest-bookings?id=${guestId}`)}
+                  className="px-6 py-3 border cursor-pointer border-blue-300 text-blue-700 rounded-full font-semibold hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                >
+                  View Guest Bookings
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1377,8 +1558,28 @@ export default function Book() {
                 Complete Your Booking
               </h1>
               <p className="text-gray-600 mb-8">
-                Please fill in your details to complete the booking process
+                {user
+                  ? "Please fill in your details to complete the booking process"
+                  : "Booking as a guest? No login required! Fill in your details to continue."}
               </p>
+
+              {!user && (
+                <div className="mb-6 p-4 bg-sky-50 border border-sky-200 rounded-xl">
+                  <div className="flex items-start">
+                    <User className="w-5 h-5 text-sky-600 mr-3 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-sky-800 mb-1">
+                        Booking as Guest
+                      </p>
+                      <p className="text-sm text-sky-700">
+                        You're booking as a guest. You'll receive booking
+                        confirmation via email. Optionally create an account
+                        later to manage your bookings.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit}>
                 {/* Personal Information */}
@@ -1502,6 +1703,49 @@ export default function Book() {
                     )}
                 </div>
 
+                {/* Account Options (for guests) */}
+                {!user && (
+                  <div className="mb-8">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                      <Key className="w-5 h-5 mr-2 text-amber-600" />
+                      Account Options
+                    </h2>
+
+                    <div className="space-y-3">
+                      <label className="flex items-start p-4 border border-gray-300 rounded-xl hover:border-gray-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="createAccount"
+                          checked={formData.createAccount}
+                          onChange={handleInputChange}
+                          className="mt-1 mr-3"
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            Create an account after booking
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Create a free account using your email to easily
+                            manage future bookings, view booking history, and
+                            get exclusive offers.
+                          </p>
+                        </div>
+                      </label>
+
+                      <div className="text-sm text-gray-500 pl-7">
+                        Already have an account?{" "}
+                        <button
+                          type="button"
+                          onClick={handleLogin}
+                          className="text-sky-600 hover:text-sky-700 font-medium"
+                        >
+                          Login here
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Payment Method */}
                 <div className="mb-8">
                   <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
@@ -1615,6 +1859,108 @@ export default function Book() {
           </div>
         </div>
       </div>
+
+      {/* Create Account Modal */}
+      {showCreateAccountModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 md:p-8 max-w-md w-full">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              Create Your Account
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Create an account to manage your bookings and get exclusive
+              offers.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={createAccountData.email}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={createAccountData.fullName}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password *
+                </label>
+                <input
+                  type="password"
+                  value={createAccountData.password}
+                  onChange={(e) =>
+                    setCreateAccountData((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
+                  placeholder="Create a password"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm Password *
+                </label>
+                <input
+                  type="password"
+                  value={createAccountData.confirmPassword}
+                  onChange={(e) =>
+                    setCreateAccountData((prev) => ({
+                      ...prev,
+                      confirmPassword: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
+                  placeholder="Confirm your password"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={handleCreateAccount}
+                disabled={isCreatingAccount}
+                className="flex-1 px-4 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-full font-semibold transition-colors disabled:opacity-50"
+              >
+                {isCreatingAccount ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Creating...
+                  </div>
+                ) : (
+                  "Create Account"
+                )}
+              </button>
+              <button
+                onClick={() => setShowCreateAccountModal(false)}
+                className="px-4 py-3 border border-gray-300 text-gray-700 rounded-full font-semibold hover:border-gray-400 hover:bg-gray-50 transition-colors"
+              >
+                Skip for Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

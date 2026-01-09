@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Search,
-  Filter,
   Users,
   User,
   Mail,
@@ -12,62 +11,33 @@ import {
   Shield,
   CheckCircle,
   XCircle,
-  MoreVertical,
   Eye,
   Edit,
   Trash2,
   Download,
   RefreshCw,
-  ChevronDown,
   Grid,
   List,
-  UserPlus,
-  Lock,
   Unlock,
   Ban,
-  Activity,
-  TrendingUp,
-  Star,
   UserCheck,
-  UserX,
   Clock,
-  Plus,
   Key,
-  Building,
   Check,
   X,
-  ChevronUp,
   AlertCircle,
-  BarChart,
   Users as UsersIcon,
   Mail as MailIcon,
   Phone as PhoneIcon,
-  CalendarDays,
   ShieldCheck,
-  Zap,
-  Globe,
   Crown,
   UserCog,
   KeyRound,
-  Save,
 } from "lucide-react";
-import Link from "next/link";
 import Sidebar from "@/app/_components/admin/Sidebar";
 import supabase from "../../lib/supabase";
 import { format, differenceInDays } from "date-fns";
 import { useRouter } from "next/navigation";
-
-// User status options
-const statusOptions = ["all", "active", "inactive", "suspended", "pending"];
-const authMethodOptions = [
-  "all",
-  "email_password",
-  "google",
-  "facebook",
-  "apple",
-];
-// User role options
-const roleOptions = ["all", "user", "admin"];
 
 export default function UsersPage() {
   const router = useRouter();
@@ -352,15 +322,6 @@ export default function UsersPage() {
     });
   };
 
-  const handleSort = (field) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "desc" ? "asc" : "desc");
-    } else {
-      setSortBy(field);
-      setSortOrder("desc");
-    }
-  };
-
   // View user details
   const handleViewUser = (user) => {
     setSelectedUser(user);
@@ -464,27 +425,6 @@ export default function UsersPage() {
     } catch (error) {
       console.error("Error resetting password:", error);
       alert("Failed to send reset password email: " + error.message);
-    }
-  };
-
-  // Update user role
-  const handleUpdateRole = async (user, newRole) => {
-    try {
-      const { error } = await supabase
-        .from("users")
-        .update({
-          user_role: newRole,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (error) throw error;
-
-      alert(`User role updated to ${newRole} successfully!`);
-      fetchUsers(); // Refresh data
-    } catch (error) {
-      console.error("Error updating user role:", error);
-      alert("Failed to update user role: " + error.message);
     }
   };
 
@@ -661,7 +601,7 @@ export default function UsersPage() {
               <div className="lg:col-span-1 space-y-6">
                 {/* Profile Card */}
                 <div className="bg-gray-900/50 rounded-xl p-6 text-center">
-                  <div className="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-purple-600 to-sky-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                  <div className="w-32 h-32 mx-auto mb-4 bg-linear-to-br from-purple-600 to-sky-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
                     {selectedUser.first_name?.[0]?.toUpperCase()}
                     {selectedUser.last_name?.[0]?.toUpperCase()}
                   </div>
@@ -1495,21 +1435,18 @@ export default function UsersPage() {
                 value: stats.totalUsers.toString(),
                 icon: <UsersIcon className="w-6 h-6" />,
                 color: "text-purple-400",
-                trend: "+12%",
               },
               {
                 label: "Active Users",
                 value: stats.activeUsers.toString(),
                 icon: <UserCheck className="w-6 h-6" />,
                 color: "text-emerald-400",
-                trend: "+8%",
               },
               {
                 label: "Admin Users",
                 value: stats.adminUsers.toString(),
                 icon: <Shield className="w-6 h-6" />,
                 color: "text-red-400",
-                trend: "+2%",
               },
             ].map((stat, index) => (
               <div
@@ -1522,15 +1459,6 @@ export default function UsersPage() {
                     <p className="text-2xl font-bold text-white mt-2">
                       {stat.value}
                     </p>
-                    <div className="flex items-center gap-1 mt-2">
-                      <TrendingUp className="w-4 h-4 text-emerald-500" />
-                      <span className="text-sm text-emerald-500">
-                        {stat.trend}
-                      </span>
-                      <span className="text-sm text-gray-400">
-                        from last month
-                      </span>
-                    </div>
                   </div>
                   <div
                     className={`p-3 rounded-xl bg-gray-900/50 ${stat.color}`}
@@ -1591,110 +1519,6 @@ export default function UsersPage() {
                     </button>
                   </div>
                 </div>
-
-                {/* Advanced Filters Button */}
-                <button className="flex items-center gap-2 px-4 py-3 border border-gray-600 hover:bg-gray-700/50 text-white rounded-xl font-medium transition-colors cursor-pointer">
-                  <Filter className="w-5 h-5" />
-                  <span>Advanced Filters</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Filter Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Status
-                </label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white cursor-pointer"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Role Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Role
-                </label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white cursor-pointer"
-                >
-                  {roleOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option.charAt(0).toUpperCase() +
-                        option.slice(1).replace("_", " ")}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Auth Method Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Auth Method
-                </label>
-                <select
-                  value={selectedAuthMethod}
-                  onChange={(e) => setSelectedAuthMethod(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white cursor-pointer"
-                >
-                  {authMethodOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option
-                        .split("_")
-                        .map(
-                          (word) => word.charAt(0).toUpperCase() + word.slice(1)
-                        )
-                        .join(" ")}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Sort Options */}
-            <div className="flex items-center gap-4 mt-6">
-              <span className="text-sm text-gray-400">Sort by:</span>
-              <div className="flex gap-2">
-                {[
-                  { field: "created_at", label: "Date Created" },
-                  { field: "first_name", label: "Name" },
-                  { field: "last_login", label: "Last Login" },
-                  { field: "user_role", label: "Role" },
-                ].map((option) => (
-                  <button
-                    key={option.field}
-                    onClick={() => handleSort(option.field)}
-                    className={`px-4 py-2 rounded-lg border transition-colors cursor-pointer ${
-                      sortBy === option.field
-                        ? "bg-purple-600 border-purple-500 text-white"
-                        : "border-gray-600 hover:bg-gray-700/50 text-gray-400"
-                    }`}
-                  >
-                    {option.label}
-                    {sortBy === option.field && (
-                      <span className="ml-2">
-                        {sortOrder === "desc" ? (
-                          <ChevronDown className="w-4 h-4 inline" />
-                        ) : (
-                          <ChevronUp className="w-4 h-4 inline" />
-                        )}
-                      </span>
-                    )}
-                  </button>
-                ))}
               </div>
             </div>
           </div>

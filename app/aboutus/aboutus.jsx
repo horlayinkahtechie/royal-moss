@@ -10,7 +10,6 @@ import {
   Star,
   CheckCircle,
   Building,
-  Calendar,
   Trophy,
   Shield,
   Leaf,
@@ -26,71 +25,73 @@ const AboutPage = () => {
 
   const milestones = [
     {
-      year: 2010,
-      title: "Foundation",
+      year: 2023,
+      title: "Vision Born",
       description:
-        "Royal Moss Hotel was founded with a vision to redefine luxury hospitality.",
-    },
-    {
-      year: 2013,
-      title: "First Award",
-      description:
-        "Received our first 5-star rating and Luxury Hotel of the Year award.",
-    },
-    {
-      year: 2016,
-      title: "Global Expansion",
-      description:
-        "Opened our second property in Dubai, marking international presence.",
-    },
-    {
-      year: 2019,
-      title: "Sustainability Leader",
-      description:
-        "Achieved carbon-neutral certification across all properties.",
-    },
-    {
-      year: 2022,
-      title: "Innovation Hub",
-      description: "Launched our digital concierge and smart room technology.",
+        "The concept of Royal Moss was conceived with a dream to create Badagry's premier luxury destination.",
     },
     {
       year: 2024,
-      title: "Industry Pioneer",
-      description: "Introduced AI-powered personalized guest experiences.",
+      title: "Construction Begins",
+      description:
+        "Groundbreaking ceremony and construction started on Iworo-Aradagun Road.",
+    },
+    {
+      year: 2025,
+      title: "Grand Opening",
+      description:
+        "Royal Moss Hotel officially opens its doors, welcoming first guests to experience luxury redefined.",
+    },
+    {
+      year: 2026,
+      title: "First Recognition",
+      description:
+        "Receives 'Best New Luxury Hotel' award in Lagos hospitality awards.",
+    },
+    {
+      year: 2027,
+      title: "Sustainable Initiatives",
+      description:
+        "Launches comprehensive eco-friendly program and community engagement.",
+    },
+    {
+      year: 2028,
+      title: "Future Vision",
+      description:
+        "Plans for expansion and introduction of premium wellness center.",
     },
   ];
 
   const coreValues = [
     {
       icon: Heart,
-      title: "Exceptional Service",
+      title: "Personalized Service",
       description:
-        "We believe in creating unforgettable experiences through personalized, anticipatory service.",
+        "Every guest receives bespoke attention tailored to their unique preferences and needs.",
       color: "text-rose-500",
       bgColor: "bg-rose-50",
     },
     {
       icon: Shield,
-      title: "Integrity",
+      title: "Authentic Hospitality",
       description:
-        "We operate with transparency, honesty, and respect in all our relationships.",
+        "We blend modern luxury with genuine Nigerian warmth and cultural authenticity.",
       color: "text-sky-500",
       bgColor: "bg-sky-50",
     },
     {
       icon: Globe,
-      title: "Global Excellence",
+      title: "Local Excellence",
       description:
-        "We combine local authenticity with international standards of luxury.",
+        "Showcasing Badagry's rich heritage while maintaining international luxury standards.",
       color: "text-emerald-500",
       bgColor: "bg-emerald-50",
     },
     {
       icon: Leaf,
-      title: "Sustainable Luxury",
+      title: "Sustainable Innovation",
       description:
-        "We're committed to environmental stewardship without compromising on luxury.",
+        "Pioneering eco-friendly practices in Nigerian luxury hospitality.",
       color: "text-amber-500",
       bgColor: "bg-amber-50",
     },
@@ -98,36 +99,36 @@ const AboutPage = () => {
 
   const leadershipTeam = [
     {
-      name: "Eleanor Sterling",
-      role: "Founder & CEO",
-      experience: "25+ years in luxury hospitality",
+      name: "Adebayo Adekunle",
+      role: "Founder & Managing Director",
+      experience: "Former executive with 15+ years in West African hospitality",
       imageColor: "bg-gradient-to-br from-sky-400 to-blue-500",
     },
     {
-      name: "Marcus Chen",
-      role: "Head of Operations",
-      experience: "15+ years managing 5-star properties",
+      name: "Chinwe Okoro",
+      role: "Operations Director",
+      experience: "10+ years managing luxury resorts across Africa",
       imageColor: "bg-gradient-to-br from-purple-400 to-pink-500",
     },
     {
-      name: "Isabella Rossi",
-      role: "Creative Director",
-      experience: "Award-winning interior designer",
+      name: "Fatima Bello",
+      role: "Guest Experience Director",
+      experience: "Hospitality specialist trained in Dubai and Singapore",
       imageColor: "bg-gradient-to-br from-amber-400 to-orange-500",
     },
     {
-      name: "David Kingston",
-      role: "Guest Experience Director",
-      experience: "Former butler to royalty",
+      name: "Segun Martins",
+      role: "Sustainability Officer",
+      experience: "Environmental consultant specializing in eco-tourism",
       imageColor: "bg-gradient-to-br from-emerald-400 to-teal-500",
     },
   ];
 
   const awards = [
-    { title: "World's Best Luxury Hotel 2023", icon: Trophy },
-    { title: "Sustainable Hotel of the Year", icon: Leaf },
-    { title: "5-Star Diamond Award", icon: Star },
-    { title: "Best Customer Service", icon: Users },
+    { title: "Best New Luxury Hotel 2025", icon: Trophy },
+    { title: "Sustainable Design Award", icon: Leaf },
+    { title: "Cultural Hospitality Excellence", icon: Star },
+    { title: "Guest Service Innovation", icon: Users },
   ];
 
   return (
@@ -147,22 +148,22 @@ const AboutPage = () => {
               <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-6">
                 <Sparkles className="w-4 h-4 text-white mr-2" />
                 <span className="text-sm font-semibold text-white">
-                  Our Story
+                  The New Era of Luxury
                 </span>
               </div>
 
               <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-                Redefining{" "}
+                Welcome to{" "}
                 <span className="text-transparent bg-clip-text bg-linear-to-r from-sky-300 to-purple-300">
-                  Luxury
+                  Royal Moss
                 </span>{" "}
-                Hospitality
+                Hotel
               </h1>
 
               <p className="text-xl text-white/90 mb-8 max-w-2xl">
-                For years, Royal Moss has been at the forefront of luxury
-                hospitality, blending timeless elegance with modern innovation
-                to create unforgettable experiences.
+                Badagry&apos;s newest and most exclusive luxury destination,
+                where contemporary elegance meets authentic Nigerian hospitality
+                in a breathtaking waterfront setting.
               </p>
 
               <div className="flex flex-wrap gap-4">
@@ -174,7 +175,7 @@ const AboutPage = () => {
                   }}
                   className="px-6 py-3 cursor-pointer bg-white text-sky-600 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:-translate-y-1"
                 >
-                  Explore Our Story
+                  Discover Our Vision
                 </button>
                 <button
                   onClick={() => {
@@ -184,7 +185,7 @@ const AboutPage = () => {
                   }}
                   className="px-6 py-3 cursor-pointer border-2 border-white/40 text-white rounded-full font-semibold hover:border-white hover:bg-white/10 transition-all duration-300"
                 >
-                  Meet Our Team
+                  Meet The Founders
                 </button>
               </div>
             </div>
@@ -192,10 +193,14 @@ const AboutPage = () => {
             {/* Stats */}
             <div className="grid grid-cols-2 gap-6">
               {[
-                { value: "10", label: "Years of Excellence", icon: Calendar },
-                { value: "50K+", label: "Happy Guests", icon: Users },
-                { value: "150+", label: "Team Members", icon: Building },
-                { value: "25+", label: "Awards Won", icon: Trophy },
+                { value: "New", label: "Premium Destination", icon: Sparkles },
+                {
+                  value: "50+",
+                  label: "Luxury Rooms & Suites",
+                  icon: Building,
+                },
+                { value: "50+", label: "Expert Team Members", icon: Users },
+                { value: "5*", label: "Service Standard", icon: Star },
               ].map((stat, index) => (
                 <div
                   key={index}
@@ -235,31 +240,31 @@ const AboutPage = () => {
 
             <div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Our <span className="text-sky-600">Journey</span> of Excellence
+                A New Vision for{" "}
+                <span className="text-sky-600">Badagry Luxury</span>
               </h2>
 
               <p className="text-lg text-gray-600 mb-6">
-                Founded in 2010, Royal Moss began as a dream to create a
-                sanctuary where luxury meets genuine hospitality. What started
-                as a single property has grown into an internationally acclaimed
-                brand, recognized for our commitment to excellence and
-                innovation.
+                Royal Moss Hotel represents a bold new chapter in Nigerian
+                luxury hospitality. Born from a vision to create Badagry&apos;s
+                most exclusive retreat, we&apos;ve built a sanctuary that honors
+                local heritage while embracing global luxury standards.
               </p>
 
               <p className="text-lg text-gray-600 mb-8">
-                We&apos;ve consistently pushed boundaries while maintaining the
-                timeless elegance that defines true luxury. From pioneering
-                sustainable practices to introducing cutting-edge guest
-                technology, our journey reflects our dedication to evolving with
-                our guests&apos; needs.
+                Strategically located on Iworo-Aradagun Road, our property
+                offers breathtaking views and unprecedented access to
+                Badagry&apos;s rich cultural tapestry. Every aspect of Royal
+                Moss has been meticulously designed to provide an authentic yet
+                elevated Nigerian experience.
               </p>
 
               <div className="space-y-4">
                 {[
-                  "Award-winning sustainable luxury practices",
-                  "Pioneers in personalized guest technology",
-                  "Global recognition for exceptional service",
-                  "Commitment to local community development",
+                  "First luxury hotel built specifically for Badagry's unique landscape",
+                  "Sustainable construction using locally-sourced materials",
+                  "Custom-designed interiors blending modern and traditional elements",
+                  "Partnerships with local artisans and cultural ambassadors",
                 ].map((item, index) => (
                   <div key={index} className="flex items-center space-x-3">
                     <CheckCircle className="w-5 h-5 text-emerald-500" />
@@ -277,10 +282,11 @@ const AboutPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Our <span className="text-sky-600">Milestones</span>
+              Our <span className="text-sky-600">Journey</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Key moments that have shaped our journey and defined our legacy
+              From vision to reality - the milestones of creating Badagry&apos;s
+              premier luxury destination
             </p>
           </div>
 
@@ -342,11 +348,10 @@ const AboutPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Our <span className="text-sky-600">Core Values</span>
+              Our <span className="text-sky-600">Philosophy</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              The principles that guide every decision we make and every
-              experience we create
+              The guiding principles that define the Royal Moss experience
             </p>
           </div>
 
@@ -377,10 +382,10 @@ const AboutPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Meet Our <span className="text-sky-600">Leadership</span>
+              The <span className="text-sky-600">Visionaries</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              The visionary team dedicated to redefining luxury hospitality
+              Meet the passionate team bringing Royal Moss to life
             </p>
           </div>
 
@@ -398,7 +403,7 @@ const AboutPage = () => {
                       <div className="text-3xl font-bold opacity-20">
                         Royal Moss
                       </div>
-                      <div className="text-sm opacity-40">Leadership</div>
+                      <div className="text-sm opacity-40">Pioneers</div>
                     </div>
                   </div>
                 </div>
@@ -441,12 +446,13 @@ const AboutPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Awards & <span className="text-sky-600">Recognition</span>
+                Setting New <span className="text-sky-600">Standards</span>
               </h2>
 
               <p className="text-lg text-gray-600 mb-8">
-                Our commitment to excellence has been recognized by the most
-                prestigious organizations in the hospitality industry.
+                Even as a new establishment, Royal Moss is already setting
+                benchmarks for luxury hospitality in Nigeria and earning
+                recognition for our innovative approach.
               </p>
 
               <div className="space-y-6">
@@ -463,7 +469,7 @@ const AboutPage = () => {
                         {award.title}
                       </h4>
                       <p className="text-sm text-gray-600">
-                        International Luxury Hotel Awards
+                        Nigerian Hospitality Excellence Awards
                       </p>
                     </div>
                   </div>
@@ -488,20 +494,21 @@ const AboutPage = () => {
       <section className="py-20 bg-linear-to-r from-sky-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Experience the Royal Moss Difference
+            Be Among Our First Guests
           </h2>
 
           <p className="text-xl text-white/90 mb-10 max-w-3xl mx-auto">
-            Join thousands of discerning travelers who have made Royal Moss
-            their preferred choice for luxury accommodation.
+            Experience Badagry&apos;s newest luxury destination and be part of
+            our founding story. Special inaugural rates available for our first
+            visitors.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button className="px-8 py-4 bg-white text-sky-600 rounded-full font-semibold text-lg hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-2xl">
-              Book Your Stay
+              Book Inaugural Stay
             </button>
             <button className="px-8 py-4 border-2 border-white text-white rounded-full font-semibold text-lg hover:bg-white/10 transition-all duration-300">
-              Contact Our Team
+              Schedule Preview Tour
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Calendar,
@@ -138,310 +138,135 @@ export default function BookingsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
 
+  // Real-time states
+  const [subscription, setSubscription] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
 
   // Debounce search
-  const [searchTimeout, setSearchTimeout] = useState(null);
+  const searchTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    const checkAdminRole = async () => {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+  // Refs for real-time
+  const subscriptionRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
-      if (authError || !user) {
-        router.replace("/unauthorized");
-        return;
-      }
-
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("user_role")
-        .eq("id", user.id)
-        .single();
-
-      // ❌ Not admin → unauthorized
-      if (userError || userData?.user_role !== "admin") {
-        router.replace("/unauthorized");
-        return;
-      }
-
-      setLoading(false);
-      fetchData();
-    };
-
-    checkAdminRole();
-  }, [router]);
-
-  // Fetch all data
-  const fetchData = useCallback(
-    async (searchTerm = searchQuery) => {
-      try {
-        setLoading(true);
-
-        // Fetch bookings data with pagination
-        let query = supabase.from("bookings").select("*", { count: "exact" });
-
-        // Apply filters
-        if (searchTerm) {
-          query = query.or(
-            `guest_name.ilike.%${searchTerm}%,guest_email.ilike.%${searchTerm}%,booking_id.ilike.%${searchTerm}%,room_number.ilike.%${searchTerm}%`
-          );
-        }
-
-        if (selectedStatus !== "all") {
-          query = query.eq("booking_status", selectedStatus);
-        }
-
-        if (selectedPaymentStatus !== "all") {
-          query = query.eq("payment_status", selectedPaymentStatus);
-        }
-
-        if (dateRange.start && dateRange.end) {
-          query = query
-            .gte("check_in_date", dateRange.start)
-            .lte("check_in_date", dateRange.end);
-        }
-
-        // Apply sorting
-        if (sortBy === "check_in_date") {
-          query = query.order("check_in_date", {
-            ascending: sortOrder === "asc",
-          });
-        } else if (sortBy === "total_amount") {
-          query = query.order("total_amount", {
-            ascending: sortOrder === "asc",
-          });
-        } else if (sortBy === "guest_name") {
-          query = query.order("guest_name", { ascending: sortOrder === "asc" });
-        } else {
-          query = query.order("created_at", { ascending: false });
-        }
-
-        // Apply pagination
-        const from = (currentPage - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-        query = query.range(from, to);
-
-        const { data: bookingsData, error: bookingsError, count } = await query;
-
-        if (bookingsError) throw bookingsError;
-
-        setTotalItems(count || 0);
-
-        // Fetch rooms data
-        const { data: roomsData, error: roomsError } = await supabase
-          .from("rooms")
-          .select("*");
-
-        if (roomsError) throw roomsError;
-
-        // Fetch users count
-        const { count: usersCount, error: usersError } = await supabase
-          .from("users")
-          .select("*", { count: "exact", head: true });
-
-        if (usersError) throw usersError;
-
-        // Process rooms data to get room type options
-        const roomCategories =
-          roomsData?.map((room) => room.room_category) || [];
-        const uniqueRoomTypes = [...new Set(roomCategories)].filter(Boolean);
-        const updatedRoomTypeOptions = ["all", ...uniqueRoomTypes];
-        setRoomTypeOptions(updatedRoomTypeOptions);
-
-        // Create a map for quick room lookup by room_number
-        const roomMap = {};
-        roomsData?.forEach((room) => {
-          roomMap[room.room_number] = room;
-        });
-
-        // Filter by room type if selected
-        let filteredBookings = bookingsData || [];
-        if (selectedRoomType !== "all") {
-          filteredBookings = filteredBookings.filter(
-            (booking) =>
-              roomMap[booking.room_number]?.room_category === selectedRoomType
-          );
-        }
-
-        // Join bookings with room data
-        const enrichedBookings =
-          filteredBookings?.map((booking) => ({
-            ...booking,
-            room_details: roomMap[booking.room_number] || null,
-          })) || [];
-
-        setBookings(enrichedBookings);
-        setRooms(roomsData || []);
-
-        // Calculate statistics based on all bookings (not just current page)
-        const allBookingsQuery = supabase.from("bookings").select("*");
-
-        const { data: allBookingsData, error: allBookingsError } =
-          await allBookingsQuery;
-
-        if (!allBookingsError && allBookingsData) {
-          const allEnrichedBookings = allBookingsData.map((booking) => ({
-            ...booking,
-            room_details: roomMap[booking.room_number] || null,
-          }));
-
-          const statsData = calculateStatistics(
-            allEnrichedBookings,
-            usersCount,
-            timePeriod,
-            roomsData
-          );
-          setStats(statsData);
-
-          // Calculate revenue trend
-          const trendData = calculateRevenueTrend(
-            allEnrichedBookings,
-            chartTimeFrame
-          );
-          setRevenueTrend(trendData);
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [
-      supabase,
-      selectedStatus,
-      selectedRoomType,
-      selectedPaymentStatus,
-      dateRange,
-      sortBy,
-      sortOrder,
-      currentPage,
-      itemsPerPage,
-      timePeriod,
-      chartTimeFrame,
-    ]
-  );
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Reset to page 1 when filters change (except search)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    selectedStatus,
-    selectedRoomType,
-    selectedPaymentStatus,
-    dateRange,
-    sortBy,
-    sortOrder,
-  ]);
-
-  // Handle search with debounce
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-
-    // Clear previous timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-
-    // Set new timeout
-    const newTimeout = setTimeout(() => {
-      setCurrentPage(1);
-      fetchData(value);
-    }, 500); // 500ms delay
-
-    setSearchTimeout(newTimeout);
+  // Format time for last update
+  const formatTime = (date) => {
+    if (!date) return "Never";
+    return format(date, "HH:mm:ss");
   };
 
-  const calculateStatistics = (bookingsData, usersCount, period, roomsData) => {
-    if (!bookingsData || bookingsData.length === 0) {
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    // Clean up search timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Clean up abort controller
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Clean up subscription
+    if (subscriptionRef.current) {
+      console.log("Cleaning up subscription...");
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
+  }, []);
+
+  // Calculate statistics
+  const calculateStatistics = useCallback(
+    (bookingsData, usersCount, period, roomsData) => {
+      if (!bookingsData || bookingsData.length === 0) {
+        return {
+          totalBookings: 0,
+          activeStays: 0,
+          totalRevenue: 0,
+          occupancyRate: 0,
+          totalUsers: usersCount || 0,
+          averageBookingValue: 0,
+          avgStayDuration: 0,
+          topRoomType: "N/A",
+        };
+      }
+
+      const now = new Date();
+      let filteredBookings = bookingsData;
+
+      // Filter by time period if needed
+      if (period !== "all") {
+        filteredBookings = filterBookingsByPeriod(bookingsData, period);
+      }
+
+      // Calculate totals
+      const totalBookings = filteredBookings.length;
+      const totalRevenue = filteredBookings.reduce(
+        (sum, booking) => sum + (parseFloat(booking.total_amount) || 0),
+        0
+      );
+      const averageBookingValue =
+        totalBookings > 0 ? totalRevenue / totalBookings : 0;
+
+      // Calculate active stays (bookings with check-in date <= now <= check-out date)
+      const activeStays = filteredBookings.filter((booking) => {
+        try {
+          const checkIn = new Date(booking.check_in_date);
+          const checkOut = new Date(booking.check_out_date);
+          return checkIn <= now && now <= checkOut;
+        } catch {
+          return false;
+        }
+      }).length;
+
+      // Calculate average stay duration
+      const totalNights = filteredBookings.reduce(
+        (sum, booking) => sum + (parseInt(booking.no_of_nights) || 0),
+        0
+      );
+      const avgStayDuration =
+        totalBookings > 0 ? (totalNights / totalBookings).toFixed(1) : 0;
+
+      // Calculate occupancy rate
+      const totalRooms = roomsData?.length || 50;
+      const occupancyRate = Math.round((activeStays / totalRooms) * 100);
+
+      // Find top room type
+      const roomTypeCounts = {};
+      filteredBookings.forEach((booking) => {
+        const roomType = booking.room_details?.room_category || "Unknown";
+        roomTypeCounts[roomType] = (roomTypeCounts[roomType] || 0) + 1;
+      });
+
+      let topRoomType = "N/A";
+      let maxCount = 0;
+      Object.entries(roomTypeCounts).forEach(([type, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          topRoomType = type;
+        }
+      });
+
       return {
-        totalBookings: 0,
-        activeStays: 0,
-        totalRevenue: 0,
-        occupancyRate: 0,
+        totalBookings,
+        activeStays,
+        totalRevenue,
+        occupancyRate,
         totalUsers: usersCount || 0,
-        averageBookingValue: 0,
-        avgStayDuration: 0,
-        topRoomType: "N/A",
+        averageBookingValue,
+        avgStayDuration: parseFloat(avgStayDuration),
+        topRoomType,
       };
-    }
-
-    const now = new Date();
-    let filteredBookings = bookingsData;
-
-    // Filter by time period if needed
-    if (period !== "all") {
-      filteredBookings = filterBookingsByPeriod(bookingsData, period);
-    }
-
-    // Calculate totals
-    const totalBookings = filteredBookings.length;
-    const totalRevenue = filteredBookings.reduce(
-      (sum, booking) => sum + (booking.total_amount || 0),
-      0
-    );
-    const averageBookingValue =
-      totalBookings > 0 ? totalRevenue / totalBookings : 0;
-
-    // Calculate active stays (bookings with check-in date <= now <= check-out date)
-    const activeStays = filteredBookings.filter((booking) => {
-      try {
-        const checkIn = new Date(booking.check_in_date);
-        const checkOut = new Date(booking.check_out_date);
-        return checkIn <= now && now <= checkOut;
-      } catch {
-        return false;
-      }
-    }).length;
-
-    // Calculate average stay duration
-    const totalNights = filteredBookings.reduce(
-      (sum, booking) => sum + (booking.no_of_nights || 0),
-      0
-    );
-    const avgStayDuration =
-      totalBookings > 0 ? (totalNights / totalBookings).toFixed(1) : 0;
-
-    // Calculate occupancy rate
-    const totalRooms = roomsData?.length || 50;
-    const occupancyRate = Math.round((activeStays / totalRooms) * 100);
-
-    // Find top room type
-    const roomTypeCounts = {};
-    filteredBookings.forEach((booking) => {
-      const roomType = booking.room_details?.room_category || "Unknown";
-      roomTypeCounts[roomType] = (roomTypeCounts[roomType] || 0) + 1;
-    });
-
-    let topRoomType = "N/A";
-    let maxCount = 0;
-    Object.entries(roomTypeCounts).forEach(([type, count]) => {
-      if (count > maxCount) {
-        maxCount = count;
-        topRoomType = type;
-      }
-    });
-
-    return {
-      totalBookings,
-      activeStays,
-      totalRevenue,
-      occupancyRate,
-      totalUsers: usersCount || 0,
-      averageBookingValue,
-      avgStayDuration: parseFloat(avgStayDuration),
-      topRoomType,
-    };
-  };
+    },
+    []
+  );
 
   const filterBookingsByPeriod = (bookingsData, period) => {
     const now = new Date();
@@ -480,7 +305,8 @@ export default function BookingsPage() {
     });
   };
 
-  const calculateRevenueTrend = (bookingsData, timeFrame) => {
+  // Calculate revenue trend
+  const calculateRevenueTrend = useCallback((bookingsData, timeFrame) => {
     if (!bookingsData || bookingsData.length === 0) {
       return [];
     }
@@ -546,7 +372,7 @@ export default function BookingsPage() {
           const current = revenueMap.get(periodKey);
           revenueMap.set(periodKey, {
             ...current,
-            revenue: current.revenue + (booking.total_amount || 0),
+            revenue: current.revenue + (parseFloat(booking.total_amount) || 0),
             bookings: current.bookings + 1,
           });
         }
@@ -559,7 +385,358 @@ export default function BookingsPage() {
     return Array.from(revenueMap.values())
       .sort((a, b) => new Date(a.period) - new Date(b.period))
       .slice(-12); // Show last 12 periods
+  }, []);
+
+  // Fetch all data
+  const fetchData = useCallback(
+    async (searchTerm = searchQuery) => {
+      try {
+        setIsSyncing(true);
+        setLoading(true);
+
+        // Create new abort controller
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        // Fetch bookings data with pagination
+        let query = supabase.from("bookings").select("*", { count: "exact" });
+
+        // Apply filters
+        if (searchTerm) {
+          query = query.or(
+            `guest_name.ilike.%${searchTerm}%,guest_email.ilike.%${searchTerm}%,booking_id.ilike.%${searchTerm}%,room_number.ilike.%${searchTerm}%`
+          );
+        }
+
+        if (selectedStatus !== "all") {
+          query = query.eq("booking_status", selectedStatus);
+        }
+
+        if (selectedPaymentStatus !== "all") {
+          query = query.eq("payment_status", selectedPaymentStatus);
+        }
+
+        if (dateRange.start && dateRange.end) {
+          query = query
+            .gte("check_in_date", dateRange.start)
+            .lte("check_in_date", dateRange.end);
+        }
+
+        // Apply sorting
+        if (sortBy === "check_in_date") {
+          query = query.order("check_in_date", {
+            ascending: sortOrder === "asc",
+          });
+        } else if (sortBy === "total_amount") {
+          query = query.order("total_amount", {
+            ascending: sortOrder === "asc",
+          });
+        } else if (sortBy === "guest_name") {
+          query = query.order("guest_name", { ascending: sortOrder === "asc" });
+        } else {
+          query = query.order("created_at", { ascending: false });
+        }
+
+        // Apply pagination
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage - 1;
+        query = query.range(from, to);
+
+        const { data: bookingsData, error: bookingsError, count } = await query;
+
+        if (bookingsError) throw bookingsError;
+
+        setTotalItems(count || 0);
+
+        // Fetch rooms data
+        const { data: roomsData, error: roomsError } = await supabase
+          .from("rooms")
+          .select("*");
+
+        if (roomsError) throw roomsError;
+
+        // Fetch users count
+        const { count: usersCount, error: usersError } = await supabase
+          .from("users")
+          .select("*", { count: "exact", head: true });
+
+        if (usersError)
+          console.error("Error fetching users count:", usersError);
+
+        // Process rooms data to get room type options
+        const roomCategories =
+          roomsData?.map((room) => room.room_category) || [];
+        const uniqueRoomTypes = [...new Set(roomCategories)].filter(Boolean);
+        const updatedRoomTypeOptions = ["all", ...uniqueRoomTypes];
+        setRoomTypeOptions(updatedRoomTypeOptions);
+
+        // Create a map for quick room lookup by room_number
+        const roomMap = {};
+        roomsData?.forEach((room) => {
+          roomMap[room.room_number] = room;
+        });
+
+        // Filter by room type if selected
+        let filteredBookings = bookingsData || [];
+        if (selectedRoomType !== "all") {
+          filteredBookings = filteredBookings.filter(
+            (booking) =>
+              roomMap[booking.room_number]?.room_category === selectedRoomType
+          );
+        }
+
+        // Join bookings with room data
+        const enrichedBookings =
+          filteredBookings?.map((booking) => ({
+            ...booking,
+            room_details: roomMap[booking.room_number] || null,
+          })) || [];
+
+        setBookings(enrichedBookings);
+        setRooms(roomsData || []);
+
+        // Calculate statistics based on all bookings (not just current page)
+        // We'll fetch all bookings for stats without filters for accuracy
+        let allBookingsQuery = supabase.from("bookings").select("*");
+
+        // Apply only status and payment filters for stats
+        if (selectedStatus !== "all") {
+          allBookingsQuery = allBookingsQuery.eq(
+            "booking_status",
+            selectedStatus
+          );
+        }
+        if (selectedPaymentStatus !== "all") {
+          allBookingsQuery = allBookingsQuery.eq(
+            "payment_status",
+            selectedPaymentStatus
+          );
+        }
+
+        const { data: allBookingsData, error: allBookingsError } =
+          await allBookingsQuery;
+
+        if (!allBookingsError && allBookingsData) {
+          const allEnrichedBookings = allBookingsData.map((booking) => ({
+            ...booking,
+            room_details: roomMap[booking.room_number] || null,
+          }));
+
+          const statsData = calculateStatistics(
+            allEnrichedBookings,
+            usersCount || 0,
+            timePeriod,
+            roomsData
+          );
+          setStats(statsData);
+
+          // Calculate revenue trend
+          const trendData = calculateRevenueTrend(
+            allEnrichedBookings,
+            chartTimeFrame
+          );
+          setRevenueTrend(trendData);
+        }
+
+        setLastUpdate(new Date());
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("Error fetching data:", error);
+        }
+      } finally {
+        setLoading(false);
+        setIsSyncing(false);
+      }
+    },
+    [
+      searchQuery,
+      selectedStatus,
+      selectedRoomType,
+      selectedPaymentStatus,
+      dateRange,
+      sortBy,
+      sortOrder,
+      currentPage,
+      itemsPerPage,
+      timePeriod,
+      chartTimeFrame,
+      calculateStatistics,
+      calculateRevenueTrend,
+    ]
+  );
+
+  // Setup real-time subscription
+  const setupRealtimeSubscription = useCallback(() => {
+    // Clean up existing subscription
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
+
+    console.log("Setting up real-time subscription for bookings...");
+
+    const channel = supabase
+      .channel("bookings-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen to INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "bookings",
+        },
+        (payload) => {
+          console.log("Real-time booking update received:", payload.eventType);
+          setIsSyncing(true);
+
+          // Refresh data
+          fetchData();
+
+          // Hide syncing indicator after a moment
+          setTimeout(() => setIsSyncing(false), 1000);
+          setLastUpdate(new Date());
+        }
+      )
+      .on("system", { event: "connected" }, () => {
+        console.log("✅ Connected to real-time");
+      })
+      .on("system", { event: "disconnected" }, () => {
+        console.log("❌ Disconnected from real-time");
+      })
+      .on("system", { event: "reconnected" }, () => {
+        console.log("🔄 Reconnected to real-time");
+        fetchData();
+      })
+      .subscribe((status) => {
+        console.log("Real-time subscription status:", status);
+        if (status === "SUBSCRIBED") {
+          console.log("✅ Successfully subscribed to real-time updates");
+        } else if (status === "CLOSED") {
+          console.log("❌ Subscription closed");
+        } else if (status === "CHANNEL_ERROR") {
+          console.log("❌ Channel error");
+        } else if (status === "TIMED_OUT") {
+          console.log("⏰ Subscription timed out");
+        }
+      });
+
+    subscriptionRef.current = channel;
+    setSubscription(channel);
+
+    return channel;
+  }, [fetchData]);
+
+  // Initial load and real-time setup
+  useEffect(() => {
+    const initialize = async () => {
+      // Check admin role
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("user_role")
+        .eq("id", user.id)
+        .single();
+
+      if (userError || userData?.user_role !== "admin") {
+        router.replace("/unauthorized");
+        return;
+      }
+
+      setLoading(true);
+      await fetchData();
+      setLoading(false);
+
+      // Setup real-time subscription
+      setupRealtimeSubscription();
+    };
+
+    initialize();
+
+    // Cleanup on unmount
+    return () => {
+      cleanup();
+    };
+  }, []);
+
+  // Reset to page 1 when filters change (except search)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    selectedStatus,
+    selectedRoomType,
+    selectedPaymentStatus,
+    dateRange,
+    sortBy,
+    sortOrder,
+  ]);
+
+  // Handle search with debounce
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout
+    searchTimeoutRef.current = setTimeout(() => {
+      setCurrentPage(1);
+      fetchData(value);
+    }, 500); // 500ms delay
   };
+
+  // Re-fetch when filters change
+  useEffect(() => {
+    fetchData();
+  }, [
+    selectedStatus,
+    selectedRoomType,
+    selectedPaymentStatus,
+    dateRange,
+    sortBy,
+    sortOrder,
+    currentPage,
+    itemsPerPage,
+    chartTimeFrame,
+    timePeriod,
+  ]);
+
+  // Handle time period change
+  useEffect(() => {
+    if (timePeriod !== "all") {
+      const now = new Date();
+      let start = "";
+      let end = format(now, "yyyy-MM-dd");
+
+      switch (timePeriod) {
+        case "today":
+          start = format(now, "yyyy-MM-dd");
+          break;
+        case "week":
+          start = format(startOfWeek(now), "yyyy-MM-dd");
+          break;
+        case "month":
+          start = format(startOfMonth(now), "yyyy-MM-dd");
+          break;
+        case "year":
+          start = format(startOfYear(now), "yyyy-MM-dd");
+          break;
+      }
+
+      setDateRange({ start, end });
+    }
+  }, [timePeriod]);
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -622,7 +799,7 @@ export default function BookingsPage() {
 
       alert("Booking updated successfully!");
       setShowEditModal(false);
-      fetchData(); // Refresh data
+      // Real-time will automatically refresh the data
     } catch (error) {
       console.error("Error updating booking:", error);
       alert("Failed to update booking: " + error.message);
@@ -644,7 +821,7 @@ export default function BookingsPage() {
       alert("Booking deleted successfully!");
       setShowDeleteModal(false);
       setBookingToDelete(null);
-      fetchData(); // Refresh data
+      // Real-time will automatically refresh the data
     } catch (error) {
       console.error("Error deleting booking:", error);
       alert("Failed to delete booking: " + error.message);
@@ -1955,6 +2132,25 @@ Hotel Management Team`);
                 </svg>
               </button>
             </div>
+            {/* Real-time status indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1">
+                <div
+                  className={`w-2 h-2 rounded-full animate-pulse ${
+                    isSyncing ? "bg-yellow-500" : "bg-emerald-500"
+                  }`}
+                ></div>
+                <span
+                  className={isSyncing ? "text-yellow-400" : "text-emerald-400"}
+                >
+                  {isSyncing ? "Syncing..." : "Live"}
+                </span>
+              </div>
+              <span className="text-gray-500">•</span>
+              <span className="text-gray-400">
+                Updated: {formatTime(lastUpdate)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -1978,7 +2174,8 @@ Hotel Management Team`);
                   Bookings Management
                 </h1>
                 <p className="text-sm text-gray-400">
-                  Manage and track all hotel bookings
+                  Manage and track all hotel bookings{" "}
+                  {isSyncing && "(Syncing...)"}
                 </p>
               </div>
 
@@ -2313,9 +2510,8 @@ Hotel Management Team`);
                       setDateRange({ start: "", end: "" });
                       setCurrentPage(1);
                       // Clear search timeout
-                      if (searchTimeout) {
-                        clearTimeout(searchTimeout);
-                        setSearchTimeout(null);
+                      if (searchTimeoutRef.current) {
+                        clearTimeout(searchTimeoutRef.current);
                       }
                       fetchData("");
                     }}
@@ -2326,10 +2522,13 @@ Hotel Management Team`);
                   </button>
                   <button
                     onClick={() => fetchData()}
-                    className="flex items-center cursor-pointer gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors"
+                    disabled={isSyncing}
+                    className="flex items-center cursor-pointer gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh Data
+                    <RefreshCw
+                      className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}
+                    />
+                    {isSyncing ? "Syncing..." : "Refresh Data"}
                   </button>
                 </div>
               </div>
@@ -2351,7 +2550,7 @@ Hotel Management Team`);
                 </p>
                 <div className="flex items-center justify-center gap-4">
                   <Link
-                    href="/admin/book-room"
+                    href="/admin/book-a-room"
                     className="px-6 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
                   >
                     Create New Booking
@@ -2364,9 +2563,8 @@ Hotel Management Team`);
                       setSelectedPaymentStatus("all");
                       setDateRange({ start: "", end: "" });
                       setCurrentPage(1);
-                      if (searchTimeout) {
-                        clearTimeout(searchTimeout);
-                        setSearchTimeout(null);
+                      if (searchTimeoutRef.current) {
+                        clearTimeout(searchTimeoutRef.current);
                       }
                       fetchData("");
                     }}

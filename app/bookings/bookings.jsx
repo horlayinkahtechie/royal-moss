@@ -26,6 +26,9 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Key,
+  LogIn,
+  Home,
 } from "lucide-react";
 import { format, parseISO, isAfter, isBefore, isValid } from "date-fns";
 
@@ -36,6 +39,8 @@ const BookingsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [guestId, setGuestId] = useState(null);
   const router = useRouter();
 
   // Filter states
@@ -48,6 +53,10 @@ const BookingsPage = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
+
+  // Guest access state
+  const [showGuestAccess, setShowGuestAccess] = useState(false);
+  const [guestAccessInput, setGuestAccessInput] = useState("");
 
   const bookingStatuses = [
     { value: "all", label: "All Bookings", color: "gray" },
@@ -65,43 +74,154 @@ const BookingsPage = () => {
     { value: "current", label: "Current Stays" },
   ];
 
-  useEffect(() => {
-    const getUser = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+  // Utility functions for guest bookings
+  const getGuestId = () => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("guest_id");
+  };
 
-        if (!user) {
-          router.push("/login");
-          return;
-        }
+  const getGuestBookings = () => {
+    if (typeof window === "undefined") return [];
+    const guestBookings = localStorage.getItem("guest_bookings");
+    return guestBookings ? JSON.parse(guestBookings) : [];
+  };
 
-        setUser(user);
-        fetchBookings(user.id);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        setError("Please login to view your bookings");
+  const getGuestDetails = () => {
+    if (typeof window === "undefined") return null;
+    const guestDetails = localStorage.getItem("guest_details");
+    return guestDetails ? JSON.parse(guestDetails) : null;
+  };
+
+  const fetchLocalStorageBookings = () => {
+    const guestId = getGuestId();
+    const guestBookings = getGuestBookings();
+    const guestDetails = getGuestDetails();
+
+    if (guestId && guestBookings.length > 0) {
+      // Filter out failed bookings
+      const successfulBookings = guestBookings.filter((booking) => {
+        const status = booking.payment_status || booking.status;
+        // Only show bookings that are successful
+        return status !== "failed" && status !== "cancelled";
+      });
+
+      // Also check for payments in progress
+      const pendingBookings = guestBookings.filter((booking) => {
+        const status = booking.payment_status || booking.status;
+        return status === "pending" || status === "processing";
+      });
+
+      if (successfulBookings.length === 0 && pendingBookings.length === 0) {
+        // No valid bookings found
         setIsLoading(false);
+        return false;
       }
-    };
 
-    getUser();
-  }, [router]);
+      setGuestId(guestId);
+      setIsGuestMode(true);
 
-  useEffect(() => {
-    applyFilters();
-  }, [bookings, filters]);
+      // Format successful bookings first
+      const formattedBookings = successfulBookings.map((booking, index) => ({
+        id: `local_${index}_${Date.now()}`,
+        booking_id: booking.booking_ref || `LOCAL-${index}`,
+        booking_reference: booking.booking_ref || `LOCAL-${index}`,
+        room_title: booking.room_title,
+        room_category: booking.room_title,
+        room_number: booking.room_number || "To be assigned",
+        room_image: booking.room_image || null,
+        check_in_date: booking.check_in_date,
+        check_out_date: booking.check_out_date,
+        no_of_guests: booking.no_of_guests || 2,
+        total_amount: booking.total_amount || 0,
+        currency: "NGN",
+        payment_status: booking.payment_status || booking.status || "pending",
+        payment_method: "paystack",
+        booking_status: booking.status,
+        guest_name: guestDetails?.name,
+        guest_email: guestDetails?.email || "",
+        guest_phone: guestDetails?.phone || "",
+        special_requests: "",
+        user_id: null,
+        guest_id: guestId,
+        payment_reference: null,
+        created_at: booking.booking_date || new Date().toISOString(),
+        displayStatus: booking.status || "pending",
+        formattedCheckIn: booking.check_in_date
+          ? format(parseISO(booking.check_in_date), "MMM dd, yyyy")
+          : "Not set",
+        formattedCheckOut: booking.check_out_date
+          ? format(parseISO(booking.check_out_date), "MMM dd, yyyy")
+          : "Not set",
+        formattedDates:
+          booking.check_in_date && booking.check_out_date
+            ? `${format(parseISO(booking.check_in_date), "MMM dd")} - ${format(
+                parseISO(booking.check_out_date),
+                "MMM dd, yyyy"
+              )}`
+            : "Not set",
+        nights:
+          booking.check_in_date && booking.check_out_date
+            ? Math.ceil(
+                (parseISO(booking.check_out_date) -
+                  parseISO(booking.check_in_date)) /
+                  (1000 * 60 * 60 * 24)
+              )
+            : 1,
+      }));
 
-  useEffect(() => {
-    // Reset to first page when filters change
-    setCurrentPage(1);
-  }, [filters]);
+      // Add pending bookings with a different status
+      const formattedPendingBookings = pendingBookings.map(
+        (booking, index) => ({
+          id: `local_pending_${index}_${Date.now()}`,
+          booking_id: booking.booking_ref || `PENDING-${index}`,
+          booking_reference: booking.booking_ref || `PENDING-${index}`,
+          room_title: booking.room_title,
+          room_category: booking.room_title,
+          room_number: "Processing...",
+          room_image: booking.room_image || null,
+          check_in_date: booking.check_in_date,
+          check_out_date: booking.check_out_date,
+          no_of_guests: booking.no_of_guests || 2,
+          total_amount: booking.total_amount || 0,
+          currency: "NGN",
+          payment_status: "processing",
+          payment_method: "paystack",
+          booking_status: "processing",
+          guest_name: guestDetails?.name,
+          guest_email: guestDetails?.email || "",
+          guest_phone: guestDetails?.phone || "",
+          special_requests: "",
+          user_id: null,
+          guest_id: guestId,
+          payment_reference: null,
+          created_at: booking.booking_date || new Date().toISOString(),
+          displayStatus: "processing",
+          formattedCheckIn: booking.check_in_date
+            ? format(parseISO(booking.check_in_date), "MMM dd, yyyy")
+            : "Processing...",
+          formattedCheckOut: booking.check_out_date
+            ? format(parseISO(booking.check_out_date), "MMM dd, yyyy")
+            : "Processing...",
+          formattedDates: "Payment in progress...",
+          nights:
+            booking.check_in_date && booking.check_out_date
+              ? Math.ceil(
+                  (parseISO(booking.check_out_date) -
+                    parseISO(booking.check_in_date)) /
+                    (1000 * 60 * 60 * 24)
+                )
+              : 1,
+        })
+      );
 
-  const fetchBookings = async (userId) => {
-    setIsLoading(true);
-    setError("");
+      setBookings([...formattedBookings, ...formattedPendingBookings]);
+      setIsLoading(false);
+      return true;
+    }
+    return false;
+  };
 
+  const fetchSupabaseBookings = async (userId) => {
     try {
       const { data: bookingsData, error: bookingsError } = await supabase
         .from("bookings")
@@ -112,6 +232,10 @@ const BookingsPage = () => {
       if (bookingsError) throw bookingsError;
 
       if (!bookingsData || bookingsData.length === 0) {
+        // If no Supabase bookings, check localStorage
+        if (fetchLocalStorageBookings()) {
+          return;
+        }
         setBookings([]);
         setIsLoading(false);
         return;
@@ -175,15 +299,15 @@ const BookingsPage = () => {
                 booking.booking_reference ||
                 booking.booking_id ||
                 `BOOK-${booking.id.slice(0, 8)}`,
-              room_title: booking.room_title || "Room",
-              room_category: booking.room_category || "Standard Room",
-              room_number: booking.room_number || "Not assigned",
-              room_image: roomImage,
+              room_title: booking.room_title,
+              room_category: booking.room_category,
+              room_number: booking.room_number,
+              room_image: booking.room_image,
               check_in_date: booking.check_in_date,
               check_out_date: booking.check_out_date,
               no_of_guests: booking.no_of_guests || 1,
               total_amount: booking.total_amount || 0,
-              currency: booking.currency || "USD",
+              currency: booking.currency || "NGN",
               payment_status: booking.payment_status || "pending",
               payment_method: booking.payment_method || "paystack",
               booking_status: booking.booking_status || "pending",
@@ -192,6 +316,7 @@ const BookingsPage = () => {
               guest_phone: booking.guest_phone || "",
               special_requests: booking.special_requests || "",
               user_id: booking.user_id,
+              guest_id: booking.guest_id,
               payment_reference: booking.payment_reference,
               created_at: booking.created_at,
               displayStatus,
@@ -212,6 +337,7 @@ const BookingsPage = () => {
 
       const validBookings = formattedBookings.filter((b) => b !== null);
       setBookings(validBookings);
+      setIsGuestMode(false);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       setError("Failed to load your bookings. Please try again.");
@@ -219,6 +345,49 @@ const BookingsPage = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const initializeBookings = async () => {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          setUser(user);
+          await fetchSupabaseBookings(user.id);
+        } else {
+          // Not logged in, check localStorage for guest bookings
+          const hasLocalBookings = fetchLocalStorageBookings();
+          if (!hasLocalBookings) {
+            // No guest bookings found
+            setIsLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing:", error);
+        // Fallback to localStorage
+        const hasLocalBookings = fetchLocalStorageBookings();
+        if (!hasLocalBookings) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initializeBookings();
+  }, [router]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [bookings, filters]);
+
+  useEffect(() => {
+    // Reset to first page when filters change
+    setCurrentPage(1);
+  }, [filters]);
 
   const applyFilters = () => {
     let filtered = [...bookings];
@@ -347,6 +516,7 @@ const BookingsPage = () => {
       case "confirmed":
       case "active":
       case "upcoming":
+      case "paid":
         return "emerald";
       case "pending":
         return "amber";
@@ -356,6 +526,7 @@ const BookingsPage = () => {
       case "completed":
         return "purple";
       case "cancelled":
+      case "failed":
         return "red";
       default:
         return "gray";
@@ -369,6 +540,7 @@ const BookingsPage = () => {
       case "confirmed":
       case "active":
       case "upcoming":
+      case "paid":
         return <CheckCircle className="w-4 h-4" />;
       case "pending":
         return <ClockIcon className="w-4 h-4" />;
@@ -378,6 +550,7 @@ const BookingsPage = () => {
       case "completed":
         return <CheckCircle className="w-4 h-4" />;
       case "cancelled":
+      case "failed":
         return <XCircle className="w-4 h-4" />;
       default:
         return <ClockIcon className="w-4 h-4" />;
@@ -422,9 +595,8 @@ const BookingsPage = () => {
             <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
               <div>
                 <h3>Hotel Information</h3>
-                <p>Luxury Hotel & Resort</p>
-                <p>123 Ocean View Drive</p>
-                <p>Miami Beach, FL 33139</p>
+                <p>Royal Moss Hotel</p>
+                <p>KLM 21, Iworo-Aradagun Road, Badagry (Moghoto)</p>
                 <p>Phone: (305) 555-0123</p>
               </div>
               <div>
@@ -446,7 +618,7 @@ const BookingsPage = () => {
                   new Date(booking.check_out_date),
                   "MMMM dd, yyyy"
                 )}</p>
-                <p><strong>Nights:</strong> ${booking.no_of_nights}</p>
+                <p><strong>Nights:</strong> ${booking.nights}</p>
               </div>
               <div>
                 <h3>Room Details</h3>
@@ -461,24 +633,21 @@ const BookingsPage = () => {
             <thead>
               <tr>
                 <th>Description</th>
-                <th>Rate</th>
                 <th>Nights</th>
                 <th>Amount</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>${booking.room_category} - Room ${booking.room_number}</td>
-                <td>$${
-                  booking.price_per_night ||
-                  booking.total_amount / booking.no_of_nights
-                }</td>
-                <td>${booking.no_of_nights}</td>
-                <td>$${booking.total_amount}</td>
+                <td>${booking.room_category} - ${booking.room_number}</td>
+                <td>${booking.nights}</td>
+                <td>₦${(booking.total_amount || 0).toFixed(2)}</td>
               </tr>
               <tr class="total-row">
-                <td colspan="3" style="text-align: right;"><strong>Total Amount:</strong></td>
-                <td class="total-amount">$${booking.total_amount}</td>
+                <td colspan="2" style="text-align: right;"><strong>Total Amount:</strong></td>
+                <td class="total-amount">₦${(booking.total_amount || 0).toFixed(
+                  2
+                )}</td>
               </tr>
             </tbody>
           </table>
@@ -491,6 +660,11 @@ const BookingsPage = () => {
               booking.payment_reference || "N/A"
             }</p>
             ${
+              isGuestMode
+                ? `<p><strong>Guest ID:</strong> ${booking.booking_id}</p>`
+                : ""
+            }
+            ${
               booking.special_requests
                 ? `<p><strong>Special Requests:</strong> ${booking.special_requests}</p>`
                 : ""
@@ -498,7 +672,7 @@ const BookingsPage = () => {
           </div>
 
           <div class="footer">
-            <p>Thank you for choosing our Royal Moss!</p>
+            <p>Thank you for choosing Royal Moss!</p>
             <p>For any questions, please contact our customer service at (305) 555-0123</p>
             <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">Print Invoice</button>
           </div>
@@ -511,18 +685,19 @@ const BookingsPage = () => {
   };
 
   const handleRefresh = () => {
+    setIsLoading(true);
     if (user) {
-      fetchBookings(user.id);
+      fetchSupabaseBookings(user.id);
     } else {
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        if (user) {
-          setUser(user);
-          fetchBookings(user.id);
-        } else {
-          router.push("/login");
-        }
-      });
+      const hasLocalBookings = fetchLocalStorageBookings();
+      if (!hasLocalBookings) {
+        setIsLoading(false);
+      }
     }
+  };
+
+  const handleLogin = () => {
+    router.push("/login?redirect=/bookings");
   };
 
   const getBookingStats = () => {
@@ -573,27 +748,7 @@ const BookingsPage = () => {
     );
   }
 
-  if (error && !user) {
-    return (
-      <div className="min-h-screen bg-gray-50 pt-32 pb-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-8 h-8 text-rose-500" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">{error}</h3>
-            <button
-              onClick={() => router.push("/login")}
-              className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 transition-colors"
-            >
-              Go to Login
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Main bookings page
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -602,21 +757,36 @@ const BookingsPage = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                My Bookings
+                {isGuestMode ? "Guest Bookings" : "My Bookings"}
               </h1>
               <p className="text-xl text-gray-600">
-                Manage your reservations and view booking details
+                {isGuestMode
+                  ? "View your bookings using your Guest ID"
+                  : "Manage your reservations and view booking details"}
               </p>
             </div>
 
             <div className="mt-6 lg:mt-0 flex gap-3">
-              <button
-                onClick={handleRefresh}
-                className="inline-flex items-center cursor-pointer px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-full font-medium hover:bg-gray-50 transition-colors"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </button>
+              {!user && isGuestMode && (
+                <button
+                  onClick={handleLogin}
+                  className="inline-flex items-center cursor-pointer px-5 py-2.5 bg-sky-600 text-white rounded-full font-medium hover:bg-sky-700 transition-colors"
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login to Account
+                </button>
+              )}
+
+              {user && (
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex items-center cursor-pointer px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-full font-medium hover:bg-gray-50 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </button>
+              )}
+
               <button
                 onClick={() => router.push("/rooms")}
                 className="inline-flex items-center cursor-pointer px-5 py-2.5 bg-sky-600 text-white rounded-full font-medium hover:bg-sky-700 transition-colors"
@@ -626,6 +796,30 @@ const BookingsPage = () => {
               </button>
             </div>
           </div>
+
+          {/* Guest Mode Banner */}
+          {isGuestMode && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="flex items-center">
+                <Key className="w-5 h-5 text-blue-600 mr-3" />
+                <div>
+                  <p className="font-medium text-blue-800">
+                    You're viewing bookings as a guest
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    Create an account to sync your bookings and access more
+                    features.
+                    <button
+                      onClick={handleLogin}
+                      className="ml-2 cursor-pointer text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Login or create account →
+                    </button>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Filters */}
@@ -675,41 +869,94 @@ const BookingsPage = () => {
         </div>
 
         {/* Error State */}
-        {error && (
+        {error && !isGuestMode && (
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center mb-8">
             <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-8 h-8 text-rose-500" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">{error}</h3>
-            <button
-              onClick={handleRefresh}
-              className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 transition-colors"
-            >
-              Try Again
-            </button>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button
+                onClick={handleRefresh}
+                className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 transition-colors"
+              >
+                Try Again
+              </button>
+              {!user && (
+                <button
+                  onClick={() => setShowGuestAccess(true)}
+                  className="px-6 py-3 border cursor-pointer border-blue-600 text-blue-600 rounded-full font-semibold hover:bg-blue-50 transition-colors"
+                >
+                  Access as Guest
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {/* No Bookings State */}
-        {!isLoading && !error && bookings.length === 0 && (
+        {!isLoading && !error && bookings.length === 0 && !isGuestMode && (
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center">
             <div className="w-24 h-24 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Calendar className="w-12 h-12 text-sky-600" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              No Bookings Yet
+              {user ? "No Bookings Yet" : "Access Your Bookings"}
             </h3>
             <p className="text-gray-600 max-w-md mx-auto mb-8">
-              You haven&apos;t made any reservations yet. Start planning your
-              perfect stay with us.
+              {user
+                ? "You haven't made any reservations yet. Start planning your perfect stay with us."
+                : "Login to view your account bookings or access your guest bookings using your Guest ID."}
             </p>
-            <button
-              onClick={() => router.push("/rooms")}
-              className="px-8 py-3 bg-sky-600 text-white rounded-full font-semibold hover:bg-sky-700 transition-colors flex items-center mx-auto"
-            >
-              Browse Rooms
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </button>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <button
+                onClick={() => router.push("/rooms")}
+                className="px-8 py-3 bg-sky-600 text-white cursor-pointer rounded-full font-semibold hover:bg-sky-700 transition-colors flex items-center"
+              >
+                Browse Rooms
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </button>
+
+              {!user && (
+                <button
+                  onClick={handleLogin}
+                  className="px-8 py-3 bg-gray-100 cursor-pointer text-gray-700 rounded-full font-semibold hover:bg-gray-200 transition-colors"
+                >
+                  Login to Account
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* No Guest Bookings State */}
+        {!isLoading && isGuestMode && bookings.length === 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center">
+            <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Key className="w-12 h-12 text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              No Guest Bookings Found
+            </h3>
+            <p className="text-gray-600 max-w-md mx-auto mb-8">
+              No bookings found for your Guest ID. Make a booking first to see
+              your reservations here.
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <button
+                onClick={() => router.push("/rooms")}
+                className="px-8 py-3 bg-sky-600 text-white rounded-full cursor-pointer font-semibold hover:bg-sky-700 transition-colors flex items-center"
+              >
+                Book a Room
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className="px-8 py-3 border border-gray-300 cursor-pointer text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Go to Homepage
+              </button>
+            </div>
           </div>
         )}
 
@@ -819,7 +1066,7 @@ const BookingsPage = () => {
                               </span>
                             </div>
                             <div className="text-lg font-bold text-gray-900">
-                              ₦{(booking.total_amount || 0).toFixed(2)}K
+                              ₦{(booking.total_amount || 0).toFixed(2)}
                             </div>
                           </div>
 
@@ -847,6 +1094,21 @@ const BookingsPage = () => {
                           </div>
                         </div>
 
+                        {/* Guest ID for guest bookings */}
+                        {isGuestMode && booking.guest_id && (
+                          <div className="mb-4 p-3 bg-blue-50 rounded-xl">
+                            <div className="flex items-center">
+                              <Key className="w-4 h-4 text-blue-600 mr-2" />
+                              <span className="text-sm text-blue-700">
+                                Guest ID:{" "}
+                                <span className="font-mono">
+                                  {booking.booking_id}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Action Buttons */}
                         <div className="flex flex-wrap gap-3 pt-6 border-t border-gray-200">
                           <button
@@ -862,25 +1124,13 @@ const BookingsPage = () => {
                             <Printer className="w-4 h-4 inline mr-2" />
                             Print Invoice
                           </button>
-                          {booking.booking_status === "confirmed" && (
+                          {isGuestMode && (
                             <button
-                              onClick={() => {
-                                const checkIn = parseISO(booking.check_in_date);
-                                if (checkIn > new Date()) {
-                                  if (
-                                    confirm(
-                                      "Are you sure you want to cancel this booking?"
-                                    )
-                                  ) {
-                                    alert(
-                                      "Booking cancellation feature to be implemented"
-                                    );
-                                  }
-                                }
-                              }}
-                              className="px-5 py-2.5 border cursor-pointer border-rose-300 text-rose-700 rounded-lg font-medium hover:bg-rose-50 transition-colors"
+                              onClick={handleLogin}
+                              className="px-5 py-2.5 border cursor-pointer border-blue-300 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
                             >
-                              Cancel Booking
+                              <LogIn className="w-4 h-4 inline mr-2" />
+                              Link to Account
                             </button>
                           )}
                         </div>
@@ -965,7 +1215,7 @@ const BookingsPage = () => {
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className={`p-2 rounded-lg ${
+                      className={`p-2 rounded-lg cursor-pointer ${
                         currentPage === totalPages
                           ? "text-gray-400 cursor-not-allowed"
                           : "text-gray-700 hover:bg-gray-100 cursor-pointer"
@@ -978,7 +1228,7 @@ const BookingsPage = () => {
                     <button
                       onClick={() => handlePageChange(totalPages)}
                       disabled={currentPage === totalPages}
-                      className={`p-2 rounded-lg ${
+                      className={`p-2 rounded-lg cursor-pointer ${
                         currentPage === totalPages
                           ? "text-gray-400 cursor-not-allowed"
                           : "text-gray-700 hover:bg-gray-100 cursor-pointer"
@@ -1035,6 +1285,14 @@ const BookingsPage = () => {
                   <p className="text-gray-600">
                     Reference: {selectedBooking.booking_reference}
                   </p>
+                  {isGuestMode && selectedBooking.guest_id && (
+                    <p className="text-sm text-blue-600">
+                      Guest ID:{" "}
+                      <span className="font-mono">
+                        {selectedBooking.booking_id}
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => setSelectedBooking(null)}
@@ -1132,7 +1390,7 @@ const BookingsPage = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Amount</span>
                         <span className="font-bold">
-                          ₦{(selectedBooking.total_amount || 0).toFixed(2)}K
+                          ₦{(selectedBooking.total_amount || 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -1166,6 +1424,14 @@ const BookingsPage = () => {
                           <span className="text-gray-600">Payment Ref</span>
                           <span className="font-medium font-mono text-sm">
                             {selectedBooking.payment_reference}
+                          </span>
+                        </div>
+                      )}
+                      {isGuestMode && selectedBooking.guest_id && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Guest ID</span>
+                          <span className="font-medium font-mono text-sm">
+                            {selectedBooking.booking_id}
                           </span>
                         </div>
                       )}
@@ -1244,6 +1510,35 @@ const BookingsPage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Guest Mode Actions */}
+              {isGuestMode && (
+                <div className="mt-6 p-5 bg-blue-50 rounded-xl border border-blue-200">
+                  <h4 className="font-semibold text-blue-900 mb-2">
+                    Want to sync your bookings?
+                  </h4>
+                  <p className="text-blue-700 text-sm mb-4">
+                    Create an account to sync your guest bookings and access
+                    them from anywhere.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={handleLogin}
+                      className="px-5 py-2.5 bg-blue-600 cursor-pointer text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      <LogIn className="w-4 h-4 inline mr-2" />
+                      Login or Create Account
+                    </button>
+                    <button
+                      onClick={() => router.push("/")}
+                      className="px-5 py-2.5 border cursor-pointer border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      <Home className="w-4 h-4 inline mr-2" />
+                      Back to Home
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="mt-8 pt-6 border-t border-gray-200 flex flex-wrap gap-3 justify-end">

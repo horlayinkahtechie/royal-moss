@@ -13,10 +13,10 @@ import {
   CreditCard,
   Image,
   LogOut,
+  User2Icon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FaNairaSign } from "react-icons/fa6";
 import supabase from "../../lib/supabase";
 import { format, startOfDay, endOfDay } from "date-fns";
 
@@ -35,6 +35,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const [badgeCounts, setBadgeCounts] = useState({
     users: 0,
     gallery: 0,
+    customers: 0, // Added customers count
     bookings: {
       all: 0,
       checkinsToday: 0,
@@ -56,7 +57,7 @@ export default function Sidebar({ isOpen, onClose }) {
         const todayStart = startOfDay(today).toISOString();
         const todayEnd = endOfDay(today).toISOString();
 
-        // Fetch users count
+        // Fetch users count (admin users)
         const { count: usersCount } = await supabase
           .from("users")
           .select("*", { count: "exact", head: true });
@@ -108,10 +109,30 @@ export default function Sidebar({ isOpen, onClose }) {
           .select("*", { count: "exact", head: true })
           .eq("status", "pending");
 
+        // ========== FETCH CUSTOMERS COUNT ==========
+        // Customers are distinct guest emails from bookings table
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from("bookings")
+          .select("guest_email, guest_name, guest_phone")
+          .not("guest_email", "is", null);
+
+        let customersCount = 0;
+        if (bookingsData && !bookingsError) {
+          // Get unique customer emails
+          const uniqueEmails = new Set(
+            bookingsData
+              .map((booking) => booking.guest_email?.toLowerCase().trim())
+              .filter((email) => email && email !== "")
+          );
+          customersCount = uniqueEmails.size;
+        }
+        // ===========================================
+
         // Update state with fetched data
         setBadgeCounts({
           users: usersCount || 0,
           gallery: galleryCount || 0,
+          customers: customersCount || 0,
           bookings: {
             all: allBookingsCount || 0,
             checkinsToday: checkinsTodayCount || 0,
@@ -264,31 +285,12 @@ export default function Sidebar({ isOpen, onClose }) {
       badge: badgeCounts.gallery > 0 ? badgeCounts.gallery.toString() : null,
     },
     {
-      id: "finance",
-      label: "Finance",
-      icon: <FaNairaSign className="w-5 h-5" />,
-      hasSubmenu: true,
-      badge: null,
-      submenu: [
-        {
-          label: "Revenue Report",
-          href: "/admin/finance/revenue",
-        },
-        {
-          label: "Invoices",
-          href: "/admin/finance/invoices",
-          badge:
-            badgeCounts.invoices > 0 ? badgeCounts.invoices.toString() : null,
-        },
-        {
-          label: "Expenses",
-          href: "/admin/finance/expenses",
-        },
-        {
-          label: "Tax Reports",
-          href: "/admin/finance/tax",
-        },
-      ],
+      id: "customers",
+      label: "Customers",
+      icon: <User2Icon className="w-5 h-5" />,
+      href: "/admin/customers",
+      badge:
+        badgeCounts.customers > 0 ? badgeCounts.customers.toString() : null, // Updated to use customers count
     },
     {
       id: "users",
@@ -301,14 +303,8 @@ export default function Sidebar({ isOpen, onClose }) {
       id: "analytics",
       label: "Analytics",
       icon: <TrendingUp className="w-5 h-5" />,
-      hasSubmenu: true,
+      href: "/admin/analytics",
       badge: null,
-      submenu: [
-        { label: "Performance", href: "/admin/analytics/performance" },
-        { label: "Occupancy Report", href: "/admin/analytics/occupancy" },
-        { label: "Booking Trends", href: "/admin/analytics/trends" },
-        { label: "Guest Insights", href: "/admin/analytics/guests" },
-      ],
     },
   ];
 

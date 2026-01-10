@@ -10,27 +10,26 @@ const Testimonials = () => {
 
   const testimonials = [
     {
-      name: "Sarah Johnson",
-      role: "Business Traveler",
+      name: "Mr. Michael",
+      role: "Tourist",
       rating: 5,
       comment:
-        "Absolutely stunning hotel with exceptional service. The executive suite was beyond expectations! The attention to detail was remarkable.",
+        "Absolutely stunning hotel with exceptional service. The room I booked was beyond expectations! The attention to detail was remarkable.",
       avatarColor: "bg-sky-500",
       stay: "Stayed in Executive Suite",
       duration: "3 nights",
     },
     {
-      name: "Michael Chen",
+      name: "Lydia Taiye David",
       role: "Family Vacation",
       rating: 5,
-      comment:
-        "Perfect for families! Kids loved the pool and the staff went above and beyond. We'll definitely be returning next year.",
+      comment: "New beautiful and good place to rest in.",
       avatarColor: "bg-purple-500",
       stay: "Stayed in Family Suite",
-      duration: "5 nights",
+      duration: "1 night",
     },
     {
-      name: "Emma Williams",
+      name: "Mr & Mrs William",
       role: "Honeymoon",
       rating: 5,
       comment:
@@ -38,36 +37,6 @@ const Testimonials = () => {
       avatarColor: "bg-amber-500",
       stay: "Stayed in Ocean View",
       duration: "7 nights",
-    },
-    {
-      name: "David Rodriguez",
-      role: "Corporate Event",
-      rating: 5,
-      comment:
-        "Hosted our company retreat here and everything was flawless. Meeting facilities were excellent and the catering was superb.",
-      avatarColor: "bg-emerald-500",
-      stay: "Stayed in Business Suite",
-      duration: "2 nights",
-    },
-    {
-      name: "Lisa Anderson",
-      role: "Anniversary Celebration",
-      rating: 5,
-      comment:
-        "Celebrated our 25th anniversary here and it was magical. The staff surprised us with champagne and cake. Truly memorable.",
-      avatarColor: "bg-rose-500",
-      stay: "Stayed in Presidential Suite",
-      duration: "4 nights",
-    },
-    {
-      name: "James Wilson",
-      role: "Solo Traveler",
-      rating: 5,
-      comment:
-        "As a solo traveler, I felt completely safe and pampered. The concierge service helped me discover amazing local experiences.",
-      avatarColor: "bg-indigo-500",
-      stay: "Stayed in Deluxe Room",
-      duration: "6 nights",
     },
   ];
 

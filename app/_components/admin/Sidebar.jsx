@@ -14,6 +14,7 @@ import {
   Image,
   LogOut,
   User2Icon,
+  MailCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -35,7 +36,8 @@ export default function Sidebar({ isOpen, onClose }) {
   const [badgeCounts, setBadgeCounts] = useState({
     users: 0,
     gallery: 0,
-    customers: 0, // Added customers count
+    customers: 0,
+    subscribers: 0,
     bookings: {
       all: 0,
       checkinsToday: 0,
@@ -46,7 +48,6 @@ export default function Sidebar({ isOpen, onClose }) {
       all: 0,
       maintenance: 0,
     },
-    invoices: 0,
   });
 
   // Fetch real data from database
@@ -60,6 +61,10 @@ export default function Sidebar({ isOpen, onClose }) {
         // Fetch users count (admin users)
         const { count: usersCount } = await supabase
           .from("users")
+          .select("*", { count: "exact", head: true });
+
+        const { count: subscribersCount } = await supabase
+          .from("subscribers")
           .select("*", { count: "exact", head: true });
 
         // Fetch gallery count
@@ -103,14 +108,6 @@ export default function Sidebar({ isOpen, onClose }) {
           .select("*", { count: "exact", head: true })
           .eq("status", "maintenance");
 
-        // Fetch pending invoices
-        const { count: pendingInvoicesCount } = await supabase
-          .from("invoices")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending");
-
-        // ========== FETCH CUSTOMERS COUNT ==========
-        // Customers are distinct guest emails from bookings table
         const { data: bookingsData, error: bookingsError } = await supabase
           .from("bookings")
           .select("guest_email, guest_name, guest_phone")
@@ -133,6 +130,7 @@ export default function Sidebar({ isOpen, onClose }) {
           users: usersCount || 0,
           gallery: galleryCount || 0,
           customers: customersCount || 0,
+          subscribers: subscribersCount || 0,
           bookings: {
             all: allBookingsCount || 0,
             checkinsToday: checkinsTodayCount || 0,
@@ -143,7 +141,6 @@ export default function Sidebar({ isOpen, onClose }) {
             all: allRoomsCount || 0,
             maintenance: maintenanceRoomsCount || 0,
           },
-          invoices: pendingInvoicesCount || 0,
         });
       } catch (error) {
         console.error("Error fetching sidebar data:", error);
@@ -300,6 +297,14 @@ export default function Sidebar({ isOpen, onClose }) {
       badge: badgeCounts.users > 0 ? badgeCounts.users.toString() : null,
     },
     {
+      id: "subscribers",
+      label: "Subscribers",
+      icon: <MailCheck className="w-5 h-5" />,
+      href: "/admin/subscribers",
+      badge:
+        badgeCounts.subscribers > 0 ? badgeCounts.subscribers.toString() : null,
+    },
+    {
       id: "analytics",
       label: "Analytics",
       icon: <TrendingUp className="w-5 h-5" />,
@@ -320,12 +325,6 @@ export default function Sidebar({ isOpen, onClose }) {
       icon: <Hotel className="w-4 h-4" />,
       href: "/admin/add-new-room",
       color: "bg-gradient-to-r from-sky-500 to-sky-600",
-    },
-    {
-      label: "Generate Invoice",
-      icon: <CreditCard className="w-4 h-4" />,
-      href: "/admin/invoice/new",
-      color: "bg-gradient-to-r from-purple-500 to-purple-600",
     },
   ];
 

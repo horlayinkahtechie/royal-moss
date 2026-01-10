@@ -406,13 +406,13 @@ export default function AdminCustomersReport() {
           <div>
             <div className="text-sm text-gray-400">Total Spent</div>
             <div className="text-xl font-bold text-emerald-400">
-              ${customer.totalSpent.toLocaleString()}
+              ₦{customer.totalSpent.toLocaleString()}
             </div>
           </div>
           <div>
             <div className="text-sm text-gray-400">Avg/Booking</div>
             <div className="text-lg font-semibold text-white">
-              $
+              ₦
               {customer.averageBookingValue.toLocaleString(undefined, {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0,
@@ -484,12 +484,12 @@ export default function AdminCustomersReport() {
       </td>
       <td className="py-4 px-4">
         <div className="text-emerald-400 font-bold">
-          ${customer.totalSpent.toLocaleString()}
+          ₦{customer.totalSpent.toLocaleString()}
         </div>
       </td>
       <td className="py-4 px-4">
         <div className="text-white">
-          $
+          ₦
           {customer.averageBookingValue.toLocaleString(undefined, {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,

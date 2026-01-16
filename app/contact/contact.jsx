@@ -1,43 +1,9 @@
-// app/contact/page.tsx
 "use client";
 
-import { useState } from "react";
-import {
-  Phone,
-  Mail,
-  MapPin,
-  Clock,
-  Building,
-  MessageSquare,
-  Users,
-  ArrowRight,
-} from "lucide-react";
+import { Clock, Building, MessageSquare, Users } from "lucide-react";
 import ContactSection from "@/app/_components/ContactSection";
 
 const ContactPage = () => {
-  const faqs = [
-    {
-      question: "What are your check-in and check-out times?",
-      answer:
-        "Check-in is at 3:00 PM and check-out is at 11:00 AM. Early check-in and late check-out may be available upon request and subject to availability.",
-    },
-    {
-      question: "Do you offer airport transportation?",
-      answer:
-        "Yes, we provide complimentary airport transfers for suite guests. For other guests, we offer luxury car service at competitive rates. Please arrange at least 24 hours in advance.",
-    },
-    {
-      question: "Are pets allowed at the hotel?",
-      answer:
-        "We welcome pets up to 25 lbs with prior arrangement. A pet fee of $150 per stay applies. We provide pet beds, bowls, and treats. Some restrictions may apply.",
-    },
-    {
-      question: "What is your cancellation policy?",
-      answer:
-        "Standard reservations can be cancelled up to 48 hours before arrival without penalty. Special packages and group bookings may have different policies.",
-    },
-  ];
-
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Calendar,
   User,
@@ -8,36 +8,13 @@ import {
   CheckCircle,
   XCircle,
   LogOut,
-  Home,
-  Bed,
-  Users,
-  CreditCard,
-  Settings,
-  Bell,
-  Search,
-  Filter,
   ChevronRight,
-  ChevronDown,
   Eye,
   Mail,
-  Phone,
-  MapPin,
-  Star,
   Check,
-  X,
-  AlertCircle,
   RefreshCw,
   Download,
-  Printer,
-  CalendarDays,
-  Hotel,
-  TrendingUp,
-  ChevronLeft,
   ChevronRight as ChevronRightIcon,
-  BarChart3,
-  Shield,
-  Moon,
-  Sun,
 } from "lucide-react";
 import Link from "next/link";
 import supabase from "../../../lib/supabase";
@@ -54,7 +31,7 @@ export default function TodayCheckinsCheckoutsPage() {
   const [todaysCheckouts, setTodaysCheckouts] = useState([]);
   const [upcomingCheckins, setUpcomingCheckins] = useState([]);
   const [upcomingCheckouts, setUpcomingCheckouts] = useState([]);
-  const [stats, setStats] = useState({
+  const [setStats] = useState({
     totalCheckins: 0,
     totalCheckouts: 0,
     pendingArrivals: 0,
@@ -269,11 +246,6 @@ export default function TodayCheckinsCheckoutsPage() {
             </button>
           );
         }
-        return (
-          <button className="px-4 py-2 bg-sky-600 cursor-pointer hover:bg-sky-700 text-white rounded-lg text-sm font-medium transition-colors">
-            Check In
-          </button>
-        );
       } else {
         if (guest.booking_status === "checked-out") {
           return (
@@ -283,11 +255,6 @@ export default function TodayCheckinsCheckoutsPage() {
             </button>
           );
         }
-        return (
-          <button className="px-4 py-2 cursor-pointer bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors">
-            Check Out
-          </button>
-        );
       }
     };
 
@@ -295,7 +262,7 @@ export default function TodayCheckinsCheckoutsPage() {
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 hover:border-sky-500/50 transition-all duration-300">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-12 h-12 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
               {guest.guest_name
                 .split(" ")
                 .map((n) => n[0])
@@ -342,18 +309,16 @@ export default function TodayCheckinsCheckoutsPage() {
               {guest.guest_phone || "N/A"}
             </p>
           </div>
+          <div className="space-y-1">
+            <p className="text-sm text-gray-400">Room ID</p>
+            <p className="text-white font-medium">
+              {guest.booking_id || "N/A"}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 pt-4 border-t border-gray-700">
           {getActionButton()}
-          <button className="flex items-center cursor-pointer gap-2 px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg text-sm font-medium transition-colors">
-            <Eye className="w-4 h-4" />
-            View Details
-          </button>
-          <button className="flex items-center cursor-pointer gap-2 px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg text-sm font-medium transition-colors">
-            <Mail className="w-4 h-4" />
-            Send Message
-          </button>
         </div>
       </div>
     );
@@ -385,7 +350,7 @@ export default function TodayCheckinsCheckoutsPage() {
       <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 p-4 hover:border-gray-600 transition-all duration-300">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+            <div className="w-10 h-10 bg-linear-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center text-white font-bold text-sm">
               {guest.guest_name
                 .split(" ")
                 .map((n) => n[0])
@@ -398,6 +363,7 @@ export default function TodayCheckinsCheckoutsPage() {
                 {guest.guest_name}
               </h4>
               <p className="text-xs text-gray-400">Room {guest.room_number}</p>
+              <p className="text-xs text-gray-400">{guest.booking_id}</p>
             </div>
           </div>
           <span className="text-xs font-medium px-2 py-1 bg-gray-700/50 text-gray-300 rounded">
@@ -422,7 +388,7 @@ export default function TodayCheckinsCheckoutsPage() {
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-400">
-            Loading today's arrivals and departures...
+            Loading today&apos;s arrivals and departures...
           </p>
         </div>
       </div>
@@ -430,7 +396,7 @@ export default function TodayCheckinsCheckoutsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Mobile sidebar toggle */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
@@ -463,7 +429,7 @@ export default function TodayCheckinsCheckoutsPage() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-white">
-                  Today's Arrivals & Departures
+                  Today&apos;s Arrivals & Departures
                 </h1>
                 <p className="text-gray-400">
                   {format(new Date(), "EEEE, MMMM dd, yyyy")}
@@ -478,11 +444,6 @@ export default function TodayCheckinsCheckoutsPage() {
                   <RefreshCw className="w-4 h-4" />
                   <span className="text-sm font-medium">Refresh</span>
                 </button>
-
-                <button className="flex cursor-pointer items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors">
-                  <Download className="w-4 h-4" />
-                  <span className="text-sm font-medium">Export</span>
-                </button>
               </div>
             </div>
           </div>
@@ -494,7 +455,7 @@ export default function TodayCheckinsCheckoutsPage() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-white">
-                    Today's Check-ins
+                    Today&apos;s Check-ins
                   </h2>
                   <p className="text-gray-400">Arrivals scheduled for today</p>
                 </div>
@@ -556,7 +517,7 @@ export default function TodayCheckinsCheckoutsPage() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-white">
-                    Today's Check-outs
+                    Today&apos;s Check-outs
                   </h2>
                   <p className="text-gray-400">
                     Departures scheduled for today
@@ -598,7 +559,7 @@ export default function TodayCheckinsCheckoutsPage() {
                     <span className="text-sm text-gray-400">Next 3 days</span>
                   </div>
                   <div className="space-y-3">
-                    {upcomingCheckouts.slice(0, 3).map((guest) => (
+                    {upcomingCheckouts.slice(0, 7).map((guest) => (
                       <UpcomingCard
                         key={guest.id}
                         guest={guest}

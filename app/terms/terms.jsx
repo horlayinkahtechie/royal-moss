@@ -41,7 +41,7 @@ const TermsConditionsPage = () => {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-sky-900/90 via-purple-900/80 to-gray-900/90 z-10"></div>
+          <div className="absolute inset-0 bg-linear-to-br from-sky-900/90 via-purple-900/80 to-gray-900/90 z-10"></div>
           <div className="absolute inset-0">
             <div className="w-full h-full bg-[url('/images/hotel-pattern.svg')] opacity-10"></div>
           </div>
@@ -58,7 +58,7 @@ const TermsConditionsPage = () => {
 
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
               Booking{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-purple-300">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-sky-300 to-purple-300">
                 Terms
               </span>{" "}
               & Conditions
@@ -246,7 +246,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -262,7 +262,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -279,7 +279,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               3
                             </span>
@@ -296,7 +296,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               4
                             </span>
@@ -331,7 +331,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -349,7 +349,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -366,7 +366,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               3
                             </span>
@@ -453,7 +453,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -470,7 +470,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -487,7 +487,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               3
                             </span>
@@ -575,7 +575,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -592,7 +592,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -608,7 +608,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               3
                             </span>
@@ -643,7 +643,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -660,7 +660,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -711,7 +711,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -728,7 +728,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -777,7 +777,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -794,7 +794,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -843,7 +843,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -861,7 +861,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>
@@ -878,7 +878,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               3
                             </span>
@@ -913,7 +913,7 @@ const TermsConditionsPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               1
                             </span>
@@ -929,7 +929,7 @@ const TermsConditionsPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                          <div className="w-6 h-6 bg-sky-100 rounded-full flex items-center justify-center mr-3 mt-0.5 shrink-0">
                             <span className="text-sky-600 font-semibold text-sm">
                               2
                             </span>

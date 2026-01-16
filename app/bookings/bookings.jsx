@@ -41,6 +41,7 @@ const BookingsPage = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [guestId, setGuestId] = useState(null);
+  const [fetchCompleted, setFetchCompleted] = useState(false);
   const router = useRouter();
 
   // Filter states
@@ -53,10 +54,6 @@ const BookingsPage = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
-
-  // Guest access state
-  const [showGuestAccess, setShowGuestAccess] = useState(false);
-  const [guestAccessInput, setGuestAccessInput] = useState("");
 
   const bookingStatuses = [
     { value: "all", label: "All Bookings", color: "gray" },
@@ -92,6 +89,7 @@ const BookingsPage = () => {
     return guestDetails ? JSON.parse(guestDetails) : null;
   };
 
+  // Fetch ONLY localStorage bookings (guest mode)
   const fetchLocalStorageBookings = () => {
     const guestId = getGuestId();
     const guestBookings = getGuestBookings();
@@ -101,19 +99,17 @@ const BookingsPage = () => {
       // Filter out failed bookings
       const successfulBookings = guestBookings.filter((booking) => {
         const status = booking.payment_status || booking.status;
-        // Only show bookings that are successful
         return status !== "failed" && status !== "cancelled";
       });
 
-      // Also check for payments in progress
       const pendingBookings = guestBookings.filter((booking) => {
         const status = booking.payment_status || booking.status;
         return status === "pending" || status === "processing";
       });
 
       if (successfulBookings.length === 0 && pendingBookings.length === 0) {
-        // No valid bookings found
         setIsLoading(false);
+        setFetchCompleted(true);
         return false;
       }
 
@@ -216,11 +212,15 @@ const BookingsPage = () => {
 
       setBookings([...formattedBookings, ...formattedPendingBookings]);
       setIsLoading(false);
+      setFetchCompleted(true);
       return true;
     }
+    setIsLoading(false);
+    setFetchCompleted(true);
     return false;
   };
 
+  // Fetch ONLY Supabase bookings (authenticated mode)
   const fetchSupabaseBookings = async (userId) => {
     try {
       const { data: bookingsData, error: bookingsError } = await supabase
@@ -232,12 +232,11 @@ const BookingsPage = () => {
       if (bookingsError) throw bookingsError;
 
       if (!bookingsData || bookingsData.length === 0) {
-        // If no Supabase bookings, check localStorage
-        if (fetchLocalStorageBookings()) {
-          return;
-        }
+        // User is authenticated but has no bookings in Supabase
         setBookings([]);
+        setIsGuestMode(false); // Ensure not in guest mode
         setIsLoading(false);
+        setFetchCompleted(true);
         return;
       }
 
@@ -337,12 +336,13 @@ const BookingsPage = () => {
 
       const validBookings = formattedBookings.filter((b) => b !== null);
       setBookings(validBookings);
-      setIsGuestMode(false);
+      setIsGuestMode(false); // Important: Not in guest mode when authenticated
     } catch (error) {
       console.error("Error fetching bookings:", error);
       setError("Failed to load your bookings. Please try again.");
     } finally {
       setIsLoading(false);
+      setFetchCompleted(true);
     }
   };
 
@@ -350,6 +350,7 @@ const BookingsPage = () => {
     const initializeBookings = async () => {
       setIsLoading(true);
       setError("");
+      setFetchCompleted(false);
 
       try {
         const {
@@ -358,21 +359,25 @@ const BookingsPage = () => {
 
         if (user) {
           setUser(user);
+          // When user is authenticated, ONLY fetch from Supabase
           await fetchSupabaseBookings(user.id);
         } else {
           // Not logged in, check localStorage for guest bookings
           const hasLocalBookings = fetchLocalStorageBookings();
           if (!hasLocalBookings) {
-            // No guest bookings found
             setIsLoading(false);
+            setFetchCompleted(true);
           }
         }
       } catch (error) {
         console.error("Error initializing:", error);
-        // Fallback to localStorage
-        const hasLocalBookings = fetchLocalStorageBookings();
-        if (!hasLocalBookings) {
-          setIsLoading(false);
+        // Fallback to localStorage only if not authenticated
+        if (!user) {
+          const hasLocalBookings = fetchLocalStorageBookings();
+          if (!hasLocalBookings) {
+            setIsLoading(false);
+            setFetchCompleted(true);
+          }
         }
       }
     };
@@ -381,8 +386,11 @@ const BookingsPage = () => {
   }, [router]);
 
   useEffect(() => {
-    applyFilters();
-  }, [bookings, filters]);
+    // Only apply filters when fetch is completed
+    if (fetchCompleted) {
+      applyFilters();
+    }
+  }, [bookings, filters, fetchCompleted]);
 
   useEffect(() => {
     // Reset to first page when filters change
@@ -447,6 +455,26 @@ const BookingsPage = () => {
 
     setFilteredBookings(filtered);
   };
+
+  const handleRefresh = () => {
+    setIsLoading(true);
+    setError("");
+    setFetchCompleted(false);
+
+    if (user) {
+      // Refresh only from Supabase for authenticated users
+      fetchSupabaseBookings(user.id);
+    } else {
+      // Refresh only from localStorage for guest users
+      const hasLocalBookings = fetchLocalStorageBookings();
+      if (!hasLocalBookings) {
+        setIsLoading(false);
+        setFetchCompleted(true);
+      }
+    }
+  };
+
+  // ... rest of the component remains the same ...
 
   // Calculate pagination values
   const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
@@ -597,7 +625,7 @@ const BookingsPage = () => {
                 <h3>Hotel Information</h3>
                 <p>Royal Moss Hotel</p>
                 <p>KLM 21, Iworo-Aradagun Road, Badagry (Moghoto)</p>
-                <p>Phone: (305) 555-0123</p>
+                <p>Phone: +234 8089 553 225</p>
               </div>
               <div>
                 <h3>Guest Information</h3>
@@ -673,7 +701,7 @@ const BookingsPage = () => {
 
           <div class="footer">
             <p>Thank you for choosing Royal Moss!</p>
-            <p>For any questions, please contact our customer service at (305) 555-0123</p>
+            <p>For any questions, please contact our customer service at +234 8089 553 225</p>
             <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">Print Invoice</button>
           </div>
         </body>
@@ -682,18 +710,6 @@ const BookingsPage = () => {
 
     printWindow.document.write(invoiceContent);
     printWindow.document.close();
-  };
-
-  const handleRefresh = () => {
-    setIsLoading(true);
-    if (user) {
-      fetchSupabaseBookings(user.id);
-    } else {
-      const hasLocalBookings = fetchLocalStorageBookings();
-      if (!hasLocalBookings) {
-        setIsLoading(false);
-      }
-    }
   };
 
   const handleLogin = () => {
@@ -804,7 +820,7 @@ const BookingsPage = () => {
                 <Key className="w-5 h-5 text-blue-600 mr-3" />
                 <div>
                   <p className="font-medium text-blue-800">
-                    You're viewing bookings as a guest
+                    You&apos;re viewing bookings as a guest
                   </p>
                   <p className="text-sm text-blue-700">
                     Create an account to sync your bookings and access more
@@ -884,10 +900,10 @@ const BookingsPage = () => {
               </button>
               {!user && (
                 <button
-                  onClick={() => setShowGuestAccess(true)}
+                  onClick={() => router.push("/rooms")}
                   className="px-6 py-3 border cursor-pointer border-blue-600 text-blue-600 rounded-full font-semibold hover:bg-blue-50 transition-colors"
                 >
-                  Access as Guest
+                  Book as Guest
                 </button>
               )}
             </div>
@@ -895,7 +911,7 @@ const BookingsPage = () => {
         )}
 
         {/* No Bookings State */}
-        {!isLoading && !error && bookings.length === 0 && !isGuestMode && (
+        {!isLoading && !error && bookings.length === 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center">
             <div className="w-24 h-24 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Calendar className="w-12 h-12 text-sky-600" />
@@ -906,7 +922,7 @@ const BookingsPage = () => {
             <p className="text-gray-600 max-w-md mx-auto mb-8">
               {user
                 ? "You haven't made any reservations yet. Start planning your perfect stay with us."
-                : "Login to view your account bookings or access your guest bookings using your Guest ID."}
+                : "Login to view your account bookings or make a booking as a guest."}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <button
@@ -925,37 +941,6 @@ const BookingsPage = () => {
                   Login to Account
                 </button>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* No Guest Bookings State */}
-        {!isLoading && isGuestMode && bookings.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center">
-            <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Key className="w-12 h-12 text-blue-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              No Guest Bookings Found
-            </h3>
-            <p className="text-gray-600 max-w-md mx-auto mb-8">
-              No bookings found for your Guest ID. Make a booking first to see
-              your reservations here.
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center">
-              <button
-                onClick={() => router.push("/rooms")}
-                className="px-8 py-3 bg-sky-600 text-white rounded-full cursor-pointer font-semibold hover:bg-sky-700 transition-colors flex items-center"
-              >
-                Book a Room
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </button>
-              <button
-                onClick={() => router.push("/")}
-                className="px-8 py-3 border border-gray-300 cursor-pointer text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors"
-              >
-                Go to Homepage
-              </button>
             </div>
           </div>
         )}

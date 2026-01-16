@@ -10,6 +10,10 @@ import {
   Search,
   XCircle,
   CheckCircle,
+  Bed,
+  User,
+  Clock,
+  ArrowRight,
 } from "lucide-react";
 import { format, parseISO, startOfDay, addDays } from "date-fns";
 
@@ -75,6 +79,7 @@ const RoomAvailability = () => {
   const [searchError, setSearchError] = useState("");
   const [roomTypes, setRoomTypes] = useState([]);
   const [searchPerformed, setSearchPerformed] = useState(false);
+  const [occupancyDetails, setOccupancyDetails] = useState([]);
 
   // Search form state
   const [searchData, setSearchData] = useState({
@@ -120,39 +125,52 @@ const RoomAvailability = () => {
     return startOfDay(date);
   };
 
-  // Check if a room is available for the selected dates
-  const checkRoomAvailability = async (roomCategory, checkIn, checkOut) => {
+  // Check availability for individual rooms with occupancy details
+  const checkIndividualRoomAvailability = async (
+    room,
+    checkIn,
+    checkOut,
+    occupancyList
+  ) => {
     const normalizedCheckIn = normalizeDate(checkIn);
     const normalizedCheckOut = normalizeDate(checkOut);
 
-    // Fetch bookings for this room type
+    // Fetch bookings for THIS SPECIFIC ROOM NUMBER
     const { data: bookings, error: bookingsError } = await supabase
       .from("bookings")
-      .select("check_in_date, check_out_date, room_category")
-      .eq("room_category", roomCategory)
-      .in("booking_status", ["confirmed", "checked_in"]);
+      .select("check_in_date, check_out_date, booking_status, guest_name")
+      .eq("room_number", room.room_number)
+      .in("booking_status", ["confirmed", "checked_in", "pending"]);
 
     if (bookingsError) {
-      console.error("Error fetching bookings:", bookingsError);
+      console.error("Error fetching bookings for room:", bookingsError);
       return false;
     }
 
-    // Check for date overlaps
+    // Check for date overlaps for this specific room
     for (const booking of bookings) {
       const bookedStart = normalizeDate(booking.check_in_date);
       const bookedEnd = normalizeDate(booking.check_out_date);
 
-      // Check if the selected dates overlap with any booking
+      // Check if the selected dates overlap with any booking for this room
       if (
         (normalizedCheckIn >= bookedStart && normalizedCheckIn < bookedEnd) ||
         (normalizedCheckOut > bookedStart && normalizedCheckOut <= bookedEnd) ||
         (normalizedCheckIn <= bookedStart && normalizedCheckOut >= bookedEnd)
       ) {
-        return false; // Room is booked for these dates
+        // Room is booked, add to occupancy details
+        occupancyList.push({
+          roomNumber: room.room_number,
+          guestName: booking.guest_name || "Guest",
+          checkIn: format(bookedStart, "MMM dd, yyyy"),
+          checkOut: format(bookedEnd, "MMM dd, yyyy"),
+          bookingStatus: booking.booking_status,
+        });
+        return false; // This specific room is booked
       }
     }
 
-    return true; // Room is available
+    return true; // This specific room is available
   };
 
   const handleSearch = async (e) => {
@@ -161,6 +179,7 @@ const RoomAvailability = () => {
     setSearchError("");
     setAvailableRooms([]);
     setSearchPerformed(false);
+    setOccupancyDetails([]);
 
     // Validate inputs
     if (!searchData.checkIn || !searchData.checkOut) {
@@ -187,38 +206,42 @@ const RoomAvailability = () => {
         query = query.eq("room_category", searchData.roomType);
       }
 
-      const { data: rooms, error: roomsError } = await query;
+      const { data: allRooms, error: roomsError } = await query;
 
       if (roomsError) throw roomsError;
 
-      if (!rooms || rooms.length === 0) {
+      if (!allRooms || allRooms.length === 0) {
         setSearchError("No rooms found matching your criteria");
         setIsLoading(false);
         setSearchPerformed(true);
         return;
       }
 
-      // Check availability for each room
-      const availableRoomsList = [];
+      // Calculate number of nights
+      const diffTime = Math.abs(checkOut - checkIn);
+      const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      for (const room of rooms) {
+      const occupancyList = [];
+
+      // Create list of ALL rooms
+      const allAvailableRooms = [];
+
+      // Check availability for each room individually
+      for (const room of allRooms) {
         // Check if room can accommodate the number of guests
         if (room.no_of_guest < searchData.guests) {
           continue; // Skip rooms that can't accommodate the guests
         }
 
-        // Check if room is available for the selected dates
-        const isAvailable = await checkRoomAvailability(
-          room.room_category,
+        // Check if this specific room is available
+        const isAvailable = await checkIndividualRoomAvailability(
+          room,
           searchData.checkIn,
-          searchData.checkOut
+          searchData.checkOut,
+          occupancyList
         );
 
         if (isAvailable) {
-          // Calculate number of nights and total price
-          const diffTime = Math.abs(checkOut - checkIn);
-          const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
           // Extract numeric price values
           const pricePerNight = extractNumericPrice(room.price_per_night);
           const discountedPricePerNight = room.discounted_price_per_night
@@ -231,24 +254,46 @@ const RoomAvailability = () => {
             ? nights * discountedPricePerNight
             : null;
 
-          availableRoomsList.push({
+          const availableRoom = {
             ...room,
             nights,
             totalPrice,
             discountedTotal,
             formattedCheckIn: format(checkIn, "MMM dd, yyyy"),
             formattedCheckOut: format(checkOut, "MMM dd, yyyy"),
-          });
+            isAvailable: true,
+            originalCheckIn: searchData.checkIn,
+            originalCheckOut: searchData.checkOut,
+            searchGuests: searchData.guests,
+          };
+
+          allAvailableRooms.push(availableRoom);
+        } else {
+          // Room is booked, but we still want to show it as unavailable
+          const bookedRoom = {
+            ...room,
+            nights,
+            formattedCheckIn: format(checkIn, "MMM dd, yyyy"),
+            formattedCheckOut: format(checkOut, "MMM dd, yyyy"),
+            isAvailable: false,
+            originalCheckIn: searchData.checkIn,
+            originalCheckOut: searchData.checkOut,
+            searchGuests: searchData.guests,
+          };
+
+          allAvailableRooms.push(bookedRoom);
         }
       }
 
-      if (availableRoomsList.length === 0) {
+      setOccupancyDetails(occupancyList);
+
+      if (allAvailableRooms.filter((r) => r.isAvailable).length === 0) {
         setSearchError(
           "No available rooms for the selected dates. Please try different dates or room type."
         );
       }
 
-      setAvailableRooms(availableRoomsList);
+      setAvailableRooms(allAvailableRooms);
       setSearchPerformed(true);
     } catch (error) {
       console.error("Search error:", error);
@@ -259,21 +304,58 @@ const RoomAvailability = () => {
   };
 
   const handleBookNow = (room) => {
-    // Extract numeric price for URL
+    if (!room.isAvailable) return;
+
+    // Format room title (Capitalize each word)
+    const roomTitle = room.room_category
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    // Get the price per night (use discounted price if available)
     const pricePerNight = extractNumericPrice(
       room.discounted_price_per_night || room.price_per_night
     );
 
-    router.push(
-      `/book?roomId=${room.id}&type=${
-        room.room_category
-      }&price=${pricePerNight}&title=${encodeURIComponent(
-        room.room_category
-          .split("-")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ")
-      )}`
-    );
+    // Build the URL query string exactly as the book page expects
+    const queryParams = new URLSearchParams({
+      roomId: room.id,
+      type: room.room_category,
+      price: pricePerNight,
+      title: roomTitle,
+      checkIn: room.originalCheckIn,
+      checkOut: room.originalCheckOut,
+      guests: room.searchGuests,
+      nights: room.nights,
+      roomNumber: room.room_number,
+      totalAmount: room.discountedTotal || room.totalPrice,
+    });
+
+    // Add room image if available
+    if (room.room_image) {
+      const roomImages = Array.isArray(room.room_image)
+        ? room.room_image
+        : typeof room.room_image === "string"
+        ? [room.room_image]
+        : [];
+      if (roomImages.length > 0) {
+        queryParams.set("roomImage", roomImages[0]);
+      }
+    }
+
+    // Add other room details
+    if (room.room_description) {
+      queryParams.set("description", room.room_description);
+    }
+    if (room.room_dismesion) {
+      queryParams.set("size", room.room_dismesion);
+    }
+    if (room.no_of_guest) {
+      queryParams.set("maxGuests", room.no_of_guest);
+    }
+
+    // Redirect to booking page with all parameters
+    router.push(`/book?${queryParams.toString()}`);
   };
 
   // Format room name for display
@@ -296,7 +378,7 @@ const RoomAvailability = () => {
             Find Your Perfect <span className="text-sky-600">Stay</span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Check availability for our luxurious rooms and suites
+            Check availability and book directly from available rooms
           </p>
         </div>
 
@@ -419,11 +501,14 @@ const RoomAvailability = () => {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">
-                  Available Rooms
+                  Available Rooms for Booking
                 </h3>
                 <p className="text-gray-600 mt-2">
-                  {availableRooms.length} room
-                  {availableRooms.length !== 1 ? "s" : ""} available from{" "}
+                  {availableRooms.filter((r) => r.isAvailable).length} room
+                  {availableRooms.filter((r) => r.isAvailable).length !== 1
+                    ? "s"
+                    : ""}{" "}
+                  available from{" "}
                   <span className="font-semibold">
                     {searchData.checkIn
                       ? format(parseISO(searchData.checkIn), "MMM dd, yyyy")
@@ -438,15 +523,58 @@ const RoomAvailability = () => {
                 </p>
               </div>
 
-              {availableRooms.length > 0 && (
+              {availableRooms.filter((r) => r.isAvailable).length > 0 && (
                 <div className="flex items-center bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg">
                   <CheckCircle className="w-5 h-5 mr-2" />
-                  <span className="font-semibold">Available</span>
+                  <span className="font-semibold">Ready to Book</span>
                 </div>
               )}
             </div>
 
-            {availableRooms.length === 0 ? (
+            {/* Occupancy Details */}
+            {occupancyDetails.length > 0 && (
+              <div className="mb-8 p-6 bg-amber-50 rounded-2xl border border-amber-200">
+                <h4 className="font-bold text-gray-900 mb-3 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-amber-600" />
+                  Occupied Rooms During This Period
+                </h4>
+                <div className="space-y-3">
+                  {occupancyDetails.map((occupancy, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-white rounded-xl border border-amber-100"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center">
+                            <Bed className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="font-medium">
+                              Room {occupancy.roomNumber}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <User className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {occupancy.guestName}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-gray-600">
+                            {occupancy.checkIn} → {occupancy.checkOut}
+                          </span>
+                          <span className="ml-3 px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded">
+                            {occupancy.bookingStatus}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {availableRooms.filter((r) => r.isAvailable).length === 0 ? (
               <div className="text-center py-12 bg-white rounded-3xl shadow-lg">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <XCircle className="w-8 h-8 text-gray-400" />
@@ -455,112 +583,164 @@ const RoomAvailability = () => {
                   No Rooms Available
                 </h4>
                 <p className="text-gray-600 max-w-md mx-auto">
-                  No rooms match your search criteria. Please try different
-                  dates or room types.
+                  All rooms are booked for the selected dates. Please try
+                  different dates or room types.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {availableRooms.map((room) => (
-                  <div
-                    key={room.id}
-                    className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:border-sky-300 transition-all duration-300 hover:shadow-xl"
-                  >
-                    <div className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4 className="text-xl font-bold text-gray-900">
-                            {formatRoomName(room.room_category)}
-                          </h4>
-                          <div className="flex items-center space-x-3 mt-2">
-                            <div className="flex items-center bg-amber-50 text-amber-700 px-2 py-1 rounded-lg">
-                              <Users className="w-4 h-4 mr-1" />
-                              <span className="font-bold">
-                                {room.no_of_guest} Guests
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {room.room_dismesion}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg text-sm font-bold">
-                          AVAILABLE
-                        </div>
-                      </div>
-
-                      <p className="text-gray-600 mb-6">
-                        {room.room_description}
-                      </p>
-
-                      {/* Booking Summary */}
-                      <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-                        <div className="grid grid-cols-2 gap-4">
+                {availableRooms
+                  .filter((room) => room.isAvailable)
+                  .map((room) => (
+                    <div
+                      key={`${room.room_number}-${room.id}`}
+                      className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:border-sky-300 transition-all duration-300 hover:shadow-xl"
+                    >
+                      <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
                           <div>
-                            <p className="text-sm text-gray-600">
-                              Stay Duration
-                            </p>
-                            <p className="font-semibold">
-                              {room.nights} night{room.nights !== 1 ? "s" : ""}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">
-                              Check-in/out
-                            </p>
-                            <p className="font-semibold">
-                              {room.formattedCheckIn} - {room.formattedCheckOut}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Pricing */}
-                      <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-                        <div>
-                          <div className="flex items-center">
-                            {room.discountedTotal ? (
-                              <>
-                                <span className="text-2xl font-bold text-gray-900">
-                                  {formatPrice(room.discountedTotal)}
+                            <h4 className="text-xl font-bold text-gray-900">
+                              {formatRoomName(room.room_category)} - Room{" "}
+                              {room.room_number}
+                            </h4>
+                            <div className="flex items-center space-x-3 mt-2">
+                              <div className="flex items-center bg-sky-50 text-sky-700 px-2 py-1 rounded-lg">
+                                <Users className="w-4 h-4 mr-1" />
+                                <span className="font-bold">
+                                  Up to {room.no_of_guest} Guests
                                 </span>
-                                <span className="ml-2 text-lg text-gray-500 line-through">
+                              </div>
+                              <div className="flex items-center bg-gray-100 text-gray-700 px-2 py-1 rounded-lg">
+                                <span className="text-sm">
+                                  {room.room_dismesion}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center px-3 py-1 rounded-lg text-sm font-bold bg-emerald-100 text-emerald-700">
+                            AVAILABLE
+                          </div>
+                        </div>
+
+                        <p className="text-gray-600 mb-6">
+                          {room.room_description}
+                        </p>
+
+                        {/* Booking Summary */}
+                        <div className="mb-6 p-4 bg-sky-50 rounded-xl border border-sky-200">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-600">
+                                Stay Duration
+                              </p>
+                              <p className="font-semibold">
+                                {room.nights} night
+                                {room.nights !== 1 ? "s" : ""}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">
+                                Check-in/out
+                              </p>
+                              <p className="font-semibold">
+                                {room.formattedCheckIn} →{" "}
+                                {room.formattedCheckOut}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Guests</p>
+                              <p className="font-semibold">
+                                {room.searchGuests}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Pricing */}
+                        <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                          <div>
+                            <div className="flex items-center">
+                              {room.discountedTotal ? (
+                                <>
+                                  <span className="text-2xl font-bold text-gray-900">
+                                    {formatPrice(room.discountedTotal)}
+                                  </span>
+                                  <span className="ml-2 text-lg text-gray-500 line-through">
+                                    {formatPrice(room.totalPrice)}
+                                  </span>
+                                  <span className="ml-2 text-sm font-bold text-emerald-600">
+                                    Save{" "}
+                                    {formatPrice(
+                                      room.totalPrice - room.discountedTotal
+                                    )}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-2xl font-bold text-gray-900">
                                   {formatPrice(room.totalPrice)}
                                 </span>
-                                <span className="ml-2 text-sm font-bold text-emerald-600">
-                                  Save{" "}
-                                  {formatPrice(
-                                    room.totalPrice - room.discountedTotal
-                                  )}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-2xl font-bold text-gray-900">
-                                {formatPrice(room.totalPrice)}
-                              </span>
-                            )}
-                            <span className="ml-2 text-gray-600">total</span>
+                              )}
+                              <span className="ml-2 text-gray-600">total</span>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {formatPrice(
+                                room.discounted_price_per_night ||
+                                  room.price_per_night,
+                                true
+                              )}{" "}
+                              per night
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {formatPrice(
-                              room.discounted_price_per_night ||
-                                room.price_per_night,
-                              true
-                            )}{" "}
-                            per night
-                          </p>
-                        </div>
 
-                        <button
-                          onClick={() => handleBookNow(room)}
-                          className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-xl font-semibold hover:bg-sky-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
-                        >
-                          Book Now
-                        </button>
+                          <button
+                            onClick={() => handleBookNow(room)}
+                            className="px-6 py-3 bg-sky-600 cursor-pointer text-white rounded-xl font-semibold hover:bg-sky-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center"
+                          >
+                            Book Now
+                            <ArrowRight className="w-5 h-5 ml-2" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
+            )}
+
+            {/* Show Occupied Rooms Separately */}
+            {availableRooms.filter((r) => !r.isAvailable).length > 0 && (
+              <div className="mt-12">
+                <h4 className="text-xl font-bold text-gray-900 mb-6">
+                  Occupied Rooms (Not Available)
+                </h4>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {availableRooms
+                    .filter((room) => !room.isAvailable)
+                    .map((room) => (
+                      <div
+                        key={`occupied-${room.room_number}`}
+                        className="bg-white rounded-xl border border-gray-300 p-6 opacity-70"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h5 className="font-semibold text-gray-900">
+                              {formatRoomName(room.room_category)} - Room{" "}
+                              {room.room_number}
+                            </h5>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Occupied during selected dates
+                            </p>
+                          </div>
+                          <div className="px-3 py-1 bg-amber-100 text-amber-700 text-sm rounded-lg font-bold">
+                            OCCUPIED
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          <p>Max Guests: {room.no_of_guest}</p>
+                          <p>Room Size: {room.room_dismesion}</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
           </div>

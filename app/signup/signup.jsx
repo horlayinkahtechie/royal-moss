@@ -124,8 +124,8 @@ export default function SignupPage() {
         );
 
         setTimeout(() => {
-          router.push("/");
-        }, 1500);
+          router.push("/login");
+        }, 3000);
       }
     } catch (err) {
       setError(err.message || "An error occurred during sign up");
@@ -524,7 +524,7 @@ export default function SignupPage() {
                     >
                       I agree to the{" "}
                       <Link
-                        href="/privacy-policy"
+                        href="/terms"
                         className="text-sky-600 cursor-pointer hover:text-sky-700"
                       >
                         Terms & Conditions

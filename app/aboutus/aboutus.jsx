@@ -15,7 +15,6 @@ import {
   Leaf,
 } from "lucide-react";
 
-// Mock images - replace with your actual images
 import HotelExterior from "@/public/images/deluxe-room.jpg";
 const hotelImage =
   "https://images.unsplash.com/photo-1455587734955-081b22074882?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fGhvdGVsfGVufDB8fDB8fHww";
@@ -486,30 +485,6 @@ const AboutPage = () => {
                 priority
               />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 bg-linear-to-r from-sky-600 to-purple-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Be Among Our First Guests
-          </h2>
-
-          <p className="text-xl text-white/90 mb-10 max-w-3xl mx-auto">
-            Experience Badagry&apos;s newest luxury destination and be part of
-            our founding story. Special inaugural rates available for our first
-            visitors.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="px-8 py-4 bg-white text-sky-600 rounded-full font-semibold text-lg hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-2xl">
-              Book Inaugural Stay
-            </button>
-            <button className="px-8 py-4 border-2 border-white text-white rounded-full font-semibold text-lg hover:bg-white/10 transition-all duration-300">
-              Schedule Preview Tour
-            </button>
           </div>
         </div>
       </section>

@@ -6,7 +6,6 @@ import {
   Lock,
   Eye,
   Mail,
-  Phone,
   CreditCard,
   Calendar,
   User,
@@ -42,7 +41,7 @@ const PrivacyPolicyPage = () => {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-sky-900/90 via-purple-900/80 to-gray-900/90 z-10"></div>
+          <div className="absolute inset-0 bg-linear-to-br from-sky-900/90 via-purple-900/80 to-gray-900/90 z-10"></div>
           <div className="absolute inset-0">
             <div className="w-full h-full bg-[url('/images/hotel-pattern.svg')] opacity-10"></div>
           </div>
@@ -59,7 +58,7 @@ const PrivacyPolicyPage = () => {
 
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
               Your Privacy{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-purple-300">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-sky-300 to-purple-300">
                 Matters
               </span>
             </h1>
@@ -235,21 +234,21 @@ const PrivacyPolicyPage = () => {
                       <div className="bg-gray-50 rounded-xl p-6">
                         <ul className="space-y-3 text-gray-700">
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Full name and contact details</span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Email address and phone number</span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>
                               Account login credentials (when applicable)
                             </span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Billing and mailing address</span>
                           </li>
                         </ul>
@@ -264,19 +263,19 @@ const PrivacyPolicyPage = () => {
                       <div className="bg-gray-50 rounded-xl p-6">
                         <ul className="space-y-3 text-gray-700">
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Check-in and check-out dates</span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Room type and preferences</span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Number of guests and ages</span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Special requests and requirements</span>
                           </li>
                         </ul>
@@ -291,17 +290,17 @@ const PrivacyPolicyPage = () => {
                       <div className="bg-gray-50 rounded-xl p-6">
                         <ul className="space-y-3 text-gray-700">
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>
                               Credit/debit card information (processed securely)
                             </span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Billing address and transaction history</span>
                           </li>
                           <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mr-2 mt-0.5 shrink-0" />
                             <span>Payment confirmation records</span>
                           </li>
                         </ul>
@@ -406,7 +405,7 @@ const PrivacyPolicyPage = () => {
                     <div className="bg-gray-50 rounded-xl p-6">
                       <ul className="space-y-4">
                         <li className="flex items-start">
-                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 shrink-0"></div>
                           <div>
                             <span className="font-medium">Hotel Staff:</span>{" "}
                             With our team members to manage your booking and
@@ -414,7 +413,7 @@ const PrivacyPolicyPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 shrink-0"></div>
                           <div>
                             <span className="font-medium">
                               Payment Processors:
@@ -424,7 +423,7 @@ const PrivacyPolicyPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 shrink-0"></div>
                           <div>
                             <span className="font-medium">
                               Service Providers:
@@ -434,7 +433,7 @@ const PrivacyPolicyPage = () => {
                           </div>
                         </li>
                         <li className="flex items-start">
-                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                          <div className="w-2 h-2 bg-sky-600 rounded-full mt-2 mr-3 shrink-0"></div>
                           <div>
                             <span className="font-medium">
                               Legal Requirements:
@@ -532,21 +531,21 @@ const PrivacyPolicyPage = () => {
                       </h3>
                       <ul className="space-y-3">
                         <li className="flex items-center">
-                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 shrink-0" />
                           <span>
                             SSL encryption for all online transactions
                           </span>
                         </li>
                         <li className="flex items-center">
-                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 shrink-0" />
                           <span>Secure payment processing systems</span>
                         </li>
                         <li className="flex items-center">
-                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 shrink-0" />
                           <span>Regular security audits and updates</span>
                         </li>
                         <li className="flex items-center">
-                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
+                          <CheckCircle className="w-5 h-5 text-emerald-500 mr-3 shrink-0" />
                           <span>Limited access to personal data</span>
                         </li>
                       </ul>
@@ -599,7 +598,7 @@ const PrivacyPolicyPage = () => {
                           key={index}
                           className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl hover:bg-sky-50 transition-colors duration-200"
                         >
-                          <CheckCircle className="w-5 h-5 text-sky-600 flex-shrink-0" />
+                          <CheckCircle className="w-5 h-5 text-sky-600 shrink-0" />
                           <span>{right}</span>
                         </div>
                       ))}

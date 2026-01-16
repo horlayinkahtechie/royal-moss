@@ -6,21 +6,19 @@ import {
   Utensils,
   Dumbbell,
   Car,
-  ConciergeBell,
   Wind,
   Tv,
   ChevronLeft,
   ChevronRight,
-  Coffee,
   Wine,
   Sun,
   Shield,
   Users,
   House,
 } from "lucide-react";
-import { MdLocalLaundryService, MdRoom } from "react-icons/md";
+import { MdLocalLaundryService } from "react-icons/md";
 import { PiHairDryer } from "react-icons/pi";
-import { BiBall, BiBulb, BiFootball } from "react-icons/bi";
+import { BiBulb, BiFootball } from "react-icons/bi";
 
 const Amenities = () => {
   const [showLeftScroll, setShowLeftScroll] = useState(false);

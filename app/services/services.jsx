@@ -15,21 +15,16 @@ import {
   Shield,
   Award,
   Heart,
-  Zap,
-  Coffee,
   Building,
   Key,
   ConciergeBell,
   Dumbbell,
   Scissors,
   Droplets,
-  Music,
   GlassWater,
   Shirt,
   UtensilsCrossed,
-  Wifi,
   Phone,
-  MapPin,
 } from "lucide-react";
 
 const HotelServices = () => {
@@ -302,10 +297,10 @@ const HotelServices = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-24 overflow-hidden bg-gradient-to-br from-sky-900 via-purple-900 to-gray-900">
+      <section className="relative pt-32 pb-24 overflow-hidden bg-linear-to-br from-sky-900 via-purple-900 to-gray-900">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[url('/images/service-pattern.svg')] opacity-5"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+          <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent"></div>
         </div>
 
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -319,7 +314,7 @@ const HotelServices = () => {
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
               Discover{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-purple-300">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-sky-300 to-purple-300">
                 Royal Moss
               </span>{" "}
               Excellence
@@ -338,7 +333,7 @@ const HotelServices = () => {
                     .getElementById("services-grid")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="px-6 py-3 md:px-8 md:py-4 cursor-pointer bg-gradient-to-r from-sky-500 to-purple-500 text-white rounded-full font-semibold text-base md:text-lg hover:from-sky-600 hover:to-purple-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl shadow-lg flex items-center"
+                className="px-6 py-3 md:px-8 md:py-4 cursor-pointer bg-linear-to-r from-sky-500 to-purple-500 text-white rounded-full font-semibold text-base md:text-lg hover:from-sky-600 hover:to-purple-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl shadow-lg flex items-center"
               >
                 Explore Services
                 <ChevronRight className="w-5 h-5 ml-2" />
@@ -388,7 +383,7 @@ const HotelServices = () => {
 
       {/* Services Filter */}
       <section
-        className="py-8 bg-gradient-to-r from-sky-50 to-purple-50 sticky top-0 z-40 shadow-sm"
+        className="py-8 bg-linear-to-r from-sky-50 to-purple-50 sticky top-0 z-40 shadow-sm"
         id="services-grid"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -404,7 +399,7 @@ const HotelServices = () => {
                   onClick={() => setActiveCategory(category.id)}
                   className={`group px-3 py-2 md:px-4 md:py-2 rounded-full flex items-center space-x-2 transition-all duration-300 ${
                     activeCategory === category.id
-                      ? "bg-gradient-to-r from-sky-500 to-purple-500 text-white shadow-lg"
+                      ? "bg-linear-to-r from-sky-500 to-purple-500 text-white shadow-lg"
                       : "bg-white text-gray-600 hover:bg-gray-50 shadow"
                   }`}
                 >
@@ -442,14 +437,14 @@ const HotelServices = () => {
               >
                 {/* Popular badge */}
                 {service.popular && (
-                  <div className="absolute top-4 left-4 z-20 px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
+                  <div className="absolute top-4 left-4 z-20 px-3 py-1 bg-linear-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
                     MOST POPULAR
                   </div>
                 )}
 
                 {/* Image */}
                 <div className="relative h-48 md:h-56 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
+                  <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent z-10"></div>
 
                   {/* Category indicator */}
                   <div className="absolute top-4 right-4 z-20 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full">
@@ -492,7 +487,7 @@ const HotelServices = () => {
                       </div>
                     </div>
 
-                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-gradient-to-r from-sky-500 to-purple-500 transition-all duration-300">
+                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-linear-to-r from-sky-500 to-purple-500 transition-all duration-300">
                       <ArrowRight className="w-5 h-5 text-gray-600 group-hover:text-white" />
                     </div>
                   </div>
@@ -548,179 +543,6 @@ const HotelServices = () => {
               </button>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Booking Process */}
-      <section className="py-12 md:py-20 bg-gradient-to-br from-gray-50 to-sky-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 md:mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Simple{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-purple-600">
-                Booking
-              </span>{" "}
-              Process
-            </h2>
-            <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-              Book your preferred service in just a few easy steps
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-            {bookingSteps.map((step, index) => (
-              <div key={step.number} className="relative">
-                {/* Connecting line */}
-                {index < bookingSteps.length - 1 && (
-                  <div className="hidden lg:block absolute top-12 left-3/4 w-full h-0.5 bg-gradient-to-r from-sky-300 to-purple-300"></div>
-                )}
-
-                <div className="relative group bg-white rounded-xl md:rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                  <div className="absolute -top-4 left-6 md:left-8 w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r from-sky-500 to-purple-500 rounded-lg md:rounded-xl flex items-center justify-center text-white font-bold text-lg md:text-xl shadow-lg">
-                    {step.number}
-                  </div>
-
-                  <div className="mt-6 md:mt-8">
-                    <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-sky-100 to-purple-100 rounded-xl md:rounded-2xl flex items-center justify-center mb-5 md:mb-6 group-hover:scale-110 transition-transform duration-300">
-                      <step.icon className="w-7 h-7 md:w-8 md:h-8 text-gradient-to-r from-sky-600 to-purple-600" />
-                    </div>
-
-                    <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">
-                      {step.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm md:text-base">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-10 md:mt-12">
-            <Link
-              href="/rooms/all"
-              className="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-sky-500 to-purple-500 text-white rounded-full font-semibold text-base md:text-lg hover:from-sky-600 hover:to-purple-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl shadow-lg inline-flex items-center"
-            >
-              Start Booking Now
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-12 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 md:mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              What Our{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-purple-600">
-                Guests
-              </span>{" "}
-              Say
-            </h2>
-            <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-              Real experiences from our valued guests
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div
-                key={index}
-                className="group bg-white rounded-xl md:rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100"
-              >
-                <div className="flex items-center mb-5 md:mb-6">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r from-sky-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-base md:text-lg">
-                    {testimonial.name.charAt(0)}
-                  </div>
-                  <div className="ml-4">
-                    <h4 className="font-bold text-gray-900">
-                      {testimonial.name}
-                    </h4>
-                    <p className="text-sm text-gray-600">{testimonial.role}</p>
-                  </div>
-                </div>
-
-                <div className="flex mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-4 h-4 md:w-5 md:h-5 text-amber-500 fill-amber-500"
-                    />
-                  ))}
-                </div>
-
-                <p className="text-gray-700 mb-4 italic text-sm md:text-base">
-                  &quot;{testimonial.text}&quot;
-                </p>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <span className="text-sm font-medium text-gradient-to-r from-sky-600 to-purple-600">
-                    {testimonial.service}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-12 md:py-20 bg-gradient-to-r from-sky-600 to-purple-600 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[url('/images/sparkle-pattern.svg')] opacity-10"></div>
-        </div>
-
-        <div className="relative z-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 mb-6">
-            <Award className="w-4 h-4 text-white mr-2" />
-            <span className="text-sm font-semibold text-white">
-              PREMIUM EXPERIENCE
-            </span>
-          </div>
-
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
-            Ready to Experience Royal Moss?
-          </h2>
-
-          <p className="text-lg md:text-xl text-white/90 mb-8 md:mb-10 max-w-3xl mx-auto">
-            Book your preferred service today and let us create unforgettable
-            moments tailored just for you in the heart of Badagry.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/rooms/all"
-              className="px-6 py-3 md:px-8 md:py-4 cursor-pointer bg-white text-sky-600 rounded-full font-semibold text-base md:text-lg hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-2xl flex items-center justify-center"
-            >
-              <Shield className="w-5 h-5 mr-2" />
-              Book Now
-            </Link>
-            <Link
-              href="/contact"
-              className="px-6 py-3 md:px-8 md:py-4 cursor-pointer border-2 border-white text-white rounded-full font-semibold text-base md:text-lg hover:bg-white/10 transition-all duration-300 flex items-center justify-center"
-            >
-              <Phone className="w-5 h-5 mr-2" />
-              Call Now
-            </Link>
-          </div>
-
-          <div className="mt-8 md:mt-10 flex flex-wrap justify-center gap-4 md:gap-6 text-white/80 text-sm">
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Best Price Guarantee
-            </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              24/7 Customer Support
-            </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-5 mr-2" />
-              Flexible Cancellation
-            </div>
-          </div>
         </div>
       </section>
     </div>

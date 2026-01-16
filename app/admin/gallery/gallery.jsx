@@ -1832,12 +1832,6 @@ export default function GalleryPage() {
                     </span>
                   )}
                 </h2>
-                <div className="flex items-center gap-4">
-                  <button className="flex items-center gap-2 px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors cursor-pointer">
-                    <Download className="w-5 h-5" />
-                    Export
-                  </button>
-                </div>
               </div>
 
               {/* Loading State */}

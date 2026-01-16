@@ -50,7 +50,7 @@ export default function Sidebar({ isOpen, onClose }) {
     },
   });
 
-  // Fetch real data from database
+  // Fetch real data from database - FIXED: Only count PAID bookings
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -72,31 +72,37 @@ export default function Sidebar({ isOpen, onClose }) {
           .from("gallery")
           .select("*", { count: "exact", head: true });
 
-        // Fetch bookings data
+        // ============ BOOKINGS DATA - ONLY PAID ============
+        // Fetch ALL bookings count - ONLY PAID
         const { count: allBookingsCount } = await supabase
           .from("bookings")
-          .select("*", { count: "exact", head: true });
+          .select("*", { count: "exact", head: true })
+          .eq("payment_status", "paid");
 
-        // Fetch check-ins for today
+        // Fetch check-ins for today - ONLY PAID
         const { count: checkinsTodayCount } = await supabase
           .from("bookings")
           .select("*", { count: "exact", head: true })
           .eq("check_in_date", format(today, "yyyy-MM-dd"))
-          .eq("status", "checked_in");
+          .eq("booking_status", "checked-in") // Changed from 'status' to 'booking_status'
+          .eq("payment_status", "paid");
 
-        // Fetch check-outs for today
+        // Fetch check-outs for today - ONLY PAID
         const { count: checkoutsTodayCount } = await supabase
           .from("bookings")
           .select("*", { count: "exact", head: true })
           .eq("check_out_date", format(today, "yyyy-MM-dd"))
-          .eq("status", "checked_out");
+          .eq("booking_status", "checked-out") // Changed from 'status' to 'booking_status'
+          .eq("payment_status", "paid");
 
-        // Fetch pending bookings
+        // Fetch pending bookings - ONLY PAID
         const { count: pendingBookingsCount } = await supabase
           .from("bookings")
           .select("*", { count: "exact", head: true })
-          .eq("status", "pending");
+          .eq("booking_status", "pending") // Changed from 'status' to 'booking_status'
+          .eq("payment_status", "paid");
 
+        // ============ ROOMS DATA ============
         // Fetch rooms data
         const { count: allRoomsCount } = await supabase
           .from("rooms")
@@ -108,14 +114,16 @@ export default function Sidebar({ isOpen, onClose }) {
           .select("*", { count: "exact", head: true })
           .eq("status", "maintenance");
 
+        // ============ CUSTOMERS DATA - ONLY FROM PAID BOOKINGS ============
         const { data: bookingsData, error: bookingsError } = await supabase
           .from("bookings")
           .select("guest_email, guest_name, guest_phone")
-          .not("guest_email", "is", null);
+          .not("guest_email", "is", null)
+          .eq("payment_status", "paid"); // Only include paid bookings for customer count
 
         let customersCount = 0;
         if (bookingsData && !bookingsError) {
-          // Get unique customer emails
+          // Get unique customer emails from PAID bookings
           const uniqueEmails = new Set(
             bookingsData
               .map((booking) => booking.guest_email?.toLowerCase().trim())
@@ -123,7 +131,6 @@ export default function Sidebar({ isOpen, onClose }) {
           );
           customersCount = uniqueEmails.size;
         }
-        // ===========================================
 
         // Update state with fetched data
         setBadgeCounts({
@@ -132,10 +139,10 @@ export default function Sidebar({ isOpen, onClose }) {
           customers: customersCount || 0,
           subscribers: subscribersCount || 0,
           bookings: {
-            all: allBookingsCount || 0,
-            checkinsToday: checkinsTodayCount || 0,
-            checkoutsToday: checkoutsTodayCount || 0,
-            pending: pendingBookingsCount || 0,
+            all: allBookingsCount || 0, // Only paid bookings
+            checkinsToday: checkinsTodayCount || 0, // Only paid check-ins
+            checkoutsToday: checkoutsTodayCount || 0, // Only paid check-outs
+            pending: pendingBookingsCount || 0, // Only paid pending
           },
           rooms: {
             all: allRoomsCount || 0,
@@ -241,6 +248,10 @@ export default function Sidebar({ isOpen, onClose }) {
           href: "/admin/book-a-room",
         },
         {
+          label: "Booked Dates",
+          href: "/admin/bookings/booked-dates",
+        },
+        {
           label: "Check ins & outs Today",
           href: "/admin/bookings/today-checkin",
           badge:
@@ -287,7 +298,7 @@ export default function Sidebar({ isOpen, onClose }) {
       icon: <User2Icon className="w-5 h-5" />,
       href: "/admin/customers",
       badge:
-        badgeCounts.customers > 0 ? badgeCounts.customers.toString() : null, // Updated to use customers count
+        badgeCounts.customers > 0 ? badgeCounts.customers.toString() : null,
     },
     {
       id: "users",
@@ -315,7 +326,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const quickActions = [
     {
-      label: "Quick Check-in",
+      label: "Check In & Out",
       icon: <Plus className="w-4 h-4" />,
       href: "/admin/quick-checkin",
       color: "bg-gradient-to-r from-emerald-500 to-emerald-600",
@@ -345,7 +356,7 @@ export default function Sidebar({ isOpen, onClose }) {
         transform transition-all duration-300 ease-out
         ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         flex flex-col
-        bg-linear-to-b from-white via-white to-gray-50
+        bg-gradient-to-b from-white via-white to-gray-50
         dark:from-gray-900 dark:via-gray-900 dark:to-gray-950
         border-r border-gray-200/80 dark:border-gray-800/80
         shadow-xl lg:shadow-2xl
@@ -367,7 +378,7 @@ export default function Sidebar({ isOpen, onClose }) {
                         ${
                           expandedMenus[item.id] ||
                           pathname.startsWith(`/admin/${item.id}`)
-                            ? "bg-linear-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
+                            ? "bg-gradient-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
                             : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50"
                         }
                         hover:shadow-sm
@@ -378,7 +389,7 @@ export default function Sidebar({ isOpen, onClose }) {
                           className={`p-2 rounded-lg mr-3 ${
                             expandedMenus[item.id] ||
                             pathname.startsWith(`/admin/${item.id}`)
-                              ? "bg-linear-to-br from-sky-500 to-sky-600 text-white"
+                              ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white"
                               : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                           }`}
                         >
@@ -410,7 +421,7 @@ export default function Sidebar({ isOpen, onClose }) {
                               flex items-center cursor-pointer justify-between px-4 py-2.5 rounded-lg text-sm transition-all duration-200
                               ${
                                 pathname === subItem.href
-                                  ? "bg-linear-to-r from-sky-500/10 to-sky-600/10 dark:from-sky-900/40 dark:to-sky-800/40 text-sky-700 dark:text-sky-400 font-medium"
+                                  ? "bg-gradient-to-r from-sky-500/10 to-sky-600/10 dark:from-sky-900/40 dark:to-sky-800/40 text-sky-700 dark:text-sky-400 font-medium"
                                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
                               }
                             `}
@@ -434,7 +445,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       flex items-center cursor-pointer justify-between px-4 py-3 rounded-xl transition-all duration-200
                       ${
                         pathname === item.href
-                          ? "bg-linear-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
+                          ? "bg-gradient-to-r from-sky-50 to-sky-100 dark:from-sky-900/30 dark:to-sky-900/10 text-sky-700 dark:text-sky-400 shadow-sm"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50"
                       }
                       hover:shadow-sm
@@ -446,7 +457,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       <div
                         className={`p-2 rounded-lg mr-3 transition-all duration-200 ${
                           pathname === item.href
-                            ? "bg-linear-to-br from-sky-500 to-sky-600 text-white shadow"
+                            ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow"
                             : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-sky-100 dark:group-hover:bg-sky-900/30"
                         }`}
                       >
@@ -475,7 +486,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="flex items-center cursor-pointer px-4 py-3.5 rounded-xl bg-linear-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50 border border-gray-200/80 dark:border-gray-800/80 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-lg transition-all duration-300 group"
+                  className="flex items-center cursor-pointer px-4 py-3.5 rounded-xl bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50 border border-gray-200/80 dark:border-gray-800/80 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-lg transition-all duration-300 group"
                   onClick={onClose}
                 >
                   <div
@@ -505,7 +516,7 @@ export default function Sidebar({ isOpen, onClose }) {
               ${
                 isLoggingOut
                   ? "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-                  : "bg-linear-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:shadow-sm"
+                  : "bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:shadow-sm"
               }
               ${isLoggingOut ? "cursor-not-allowed" : "hover:shadow-sm"}
             `}
@@ -514,7 +525,7 @@ export default function Sidebar({ isOpen, onClose }) {
               className={`p-2 rounded-lg mr-3 ${
                 isLoggingOut
                   ? "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                  : "bg-linear-to-br from-red-500 to-red-600 text-white"
+                  : "bg-gradient-to-br from-red-500 to-red-600 text-white"
               }`}
             >
               {isLoggingOut ? (

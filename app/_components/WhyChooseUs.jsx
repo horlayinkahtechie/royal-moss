@@ -7,8 +7,8 @@ const WhyChooseUs = () => {
     {
       icon: Award,
       title: "Award-Winning Service",
-      description: "Consistently rated among the top hotels worldwide",
-      stats: "20+ Awards",
+      description: "Consistently rated among the top hotels",
+      stats: "",
       color: "text-purple-600",
     },
     {

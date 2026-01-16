@@ -192,7 +192,7 @@ const ContactSection = () => {
     {
       icon: <Phone className="w-6 h-6" />,
       title: "Call Us",
-      details: ["+377 12 345 678", "+377 98 765 432"],
+      details: ["+234 8089 553 225", "+234 7076 012 107"],
       color: "from-sky-500 to-sky-600",
       bgColor: "bg-sky-50",
       iconColor: "text-sky-600",
@@ -200,7 +200,7 @@ const ContactSection = () => {
     {
       icon: <Mail className="w-6 h-6" />,
       title: "Email Us",
-      details: ["reservations@royalmoss.com", "info@royalmoss.com"],
+      details: ["reservations@royalmoss.com", "royalmossng@gmail.com"],
       color: "from-emerald-500 to-emerald-600",
       bgColor: "bg-emerald-50",
       iconColor: "text-emerald-600",
@@ -208,11 +208,7 @@ const ContactSection = () => {
     {
       icon: <Clock className="w-6 h-6" />,
       title: "Opening Hours",
-      details: [
-        "24/7 Reception",
-        "Concierge: 6AM - 12AM",
-        "Restaurant: 7AM - 11PM",
-      ],
+      details: ["24/7 Reception"],
       color: "from-amber-500 to-amber-600",
       bgColor: "bg-amber-50",
       iconColor: "text-amber-600",
@@ -222,7 +218,7 @@ const ContactSection = () => {
   return (
     <section
       id="contact"
-      className="py-20 bg-gradient-to-b from-white to-gray-50"
+      className="py-20 bg-linear-to-b from-white to-gray-50"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -235,7 +231,7 @@ const ContactSection = () => {
             Contact <span className="text-sky-600">Us</span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            We're here to help you plan your perfect stay. Reach out to us
+            We&apos;re here to help you plan your perfect stay. Reach out to us
             anytime.
           </p>
         </div>
@@ -294,7 +290,7 @@ const ContactSection = () => {
             </div>
 
             {/* Map Preview */}
-            <div className="mt-10 bg-gradient-to-r from-sky-500 to-purple-600 rounded-2xl p-6 text-white overflow-hidden">
+            <div className="mt-10 bg-linear-to-r from-sky-500 to-purple-600 rounded-2xl p-6 text-white overflow-hidden">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-xl font-bold mb-1">Our Location</h3>
@@ -351,8 +347,8 @@ const ContactSection = () => {
                 Send us a Message
               </h3>
               <p className="text-gray-600">
-                Fill out the form below and we'll get back to you as soon as
-                possible.
+                Fill out the form below and we&apos;ll get back to you as soon
+                as possible.
               </p>
             </div>
 
@@ -574,7 +570,7 @@ const ContactSection = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-8 py-3 bg-gradient-to-r cursor-pointer from-purple-600 to-sky-600 text-white rounded-full font-semibold hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center group"
+                  className="px-8 py-3 bg-linear-to-r cursor-pointer from-purple-600 to-sky-600 text-white rounded-full font-semibold hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center group"
                 >
                   {isSubmitting ? (
                     <>
@@ -632,7 +628,7 @@ const ContactSection = () => {
         </div>
 
         {/* FAQ Preview */}
-        <div className="mt-20 bg-gradient-to-r from-sky-50 to-purple-50 rounded-3xl p-8 md:p-12">
+        <div className="mt-20 bg-linear-to-r from-sky-50 to-purple-50 rounded-3xl p-8 md:p-12">
           <div className="text-center mb-10">
             <h3 className="text-3xl font-bold text-gray-900 mb-4">
               Frequently Asked Questions
@@ -645,18 +641,19 @@ const ContactSection = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                question: "What is your cancellation policy?",
+                question: "How do I make a reservation on the website?",
                 answer:
-                  "Free cancellation up to 24 hours before check-in. View full policy.",
+                  "Select your check-in and check-out dates, choose a room, enter your details, and confirm your booking online.",
               },
               {
-                question: "Do you offer airport transfers?",
+                question: "Is the room availability avaialable in real-time?",
                 answer:
-                  "Yes, luxury airport transfers can be arranged upon request.",
+                  "Yes. Availability updates instantly to prevent double booking.",
               },
               {
-                question: "Are pets allowed?",
-                answer: "We welcome pets under 25lbs with prior arrangement.",
+                question: "Can I book room for multiple guests?",
+                answer:
+                  "Yes. You can select the number of guests during booking, and the system will show suitable available rooms.",
               },
             ].map((faq, index) => (
               <div

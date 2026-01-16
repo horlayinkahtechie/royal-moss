@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import supabase from "../lib/supabase";
 import Image from "next/image";
@@ -36,6 +36,7 @@ import {
   startOfDay,
   isBefore,
   parseISO,
+  isAfter,
 } from "date-fns";
 
 // Utility function to format price with K, M, B suffixes
@@ -106,6 +107,7 @@ export default function Book() {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingReference, setBookingReference] = useState("");
   const [existingBookings, setExistingBookings] = useState([]);
+  const [allRoomsOfType, setAllRoomsOfType] = useState([]);
   const [dateValidationError, setDateValidationError] = useState("");
   const [showCalendar, setShowCalendar] = useState({
     checkIn: false,
@@ -231,6 +233,7 @@ export default function Book() {
 
     getUser();
     fetchRoomDetails();
+    fetchAllRoomsOfType();
     fetchExistingBookings();
 
     // Check if this is a payment callback
@@ -245,6 +248,24 @@ export default function Book() {
 
     checkPaymentStatus();
   }, [roomId, roomType, searchParams]);
+
+  // Fetch all rooms of the same type
+  const fetchAllRoomsOfType = async () => {
+    if (!roomType) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("room_number, id, room_availability")
+        .eq("room_category", roomType)
+        .eq("room_availability", true);
+
+      if (error) throw error;
+      setAllRoomsOfType(data || []);
+    } catch (error) {
+      console.error("Error fetching rooms of type:", error);
+    }
+  };
 
   const verifyPaymentCallback = async (reference) => {
     try {
@@ -322,6 +343,7 @@ export default function Book() {
     room,
     roomPrice,
     existingBookings,
+    allRoomsOfType,
   ]);
 
   const fetchExistingBookings = async () => {
@@ -330,7 +352,7 @@ export default function Book() {
     try {
       const { data, error } = await supabase
         .from("bookings")
-        .select("check_in_date, check_out_date")
+        .select("check_in_date, check_out_date, room_number")
         .eq("room_category", roomType)
         .in("booking_status", ["confirmed", "checked_in"])
         .order("check_in_date", { ascending: true });
@@ -346,46 +368,137 @@ export default function Book() {
     return startOfDay(new Date(date));
   };
 
-  const isDateBooked = (date) => {
-    const checkDate = normalizeDate(date);
+  // Check if a specific date has any available rooms
+  const isDateAvailable = useCallback(
+    (date) => {
+      const checkDate = normalizeDate(date);
 
-    for (const booking of existingBookings) {
-      const bookedStart = normalizeDate(booking.check_in_date);
-      const bookedEnd = normalizeDate(booking.check_out_date);
+      // Get all rooms of this type
+      const totalRooms = allRoomsOfType.length;
+      if (totalRooms === 0) return true; // No rooms at all
 
-      if (checkDate >= bookedStart && checkDate < bookedEnd) {
-        return true;
+      // Count how many rooms are booked on this date
+      let bookedRooms = 0;
+      existingBookings.forEach((booking) => {
+        const bookedStart = normalizeDate(booking.check_in_date);
+        const bookedEnd = normalizeDate(booking.check_out_date);
+
+        if (checkDate >= bookedStart && checkDate < bookedEnd) {
+          bookedRooms++;
+        }
+      });
+
+      // Date is available if not all rooms are booked
+      return bookedRooms < totalRooms;
+    },
+    [allRoomsOfType, existingBookings]
+  );
+
+  // Check if a specific date range has any available rooms
+  const isDateRangeAvailable = useCallback(
+    (checkIn, checkOut) => {
+      const normalizedCheckIn = normalizeDate(checkIn);
+      const normalizedCheckOut = normalizeDate(checkOut);
+
+      // Get all rooms of this type
+      const totalRooms = allRoomsOfType.length;
+      if (totalRooms === 0) return false;
+
+      // Create a map to track room availability
+      const roomAvailability = new Map();
+      allRoomsOfType.forEach((room) => {
+        roomAvailability.set(room.room_number, true);
+      });
+
+      // Mark rooms as unavailable if they're booked during the date range
+      existingBookings.forEach((booking) => {
+        const bookedStart = normalizeDate(booking.check_in_date);
+        const bookedEnd = normalizeDate(booking.check_out_date);
+
+        // Check if booking overlaps with selected dates
+        if (
+          (normalizedCheckIn >= bookedStart && normalizedCheckIn < bookedEnd) ||
+          (normalizedCheckOut > bookedStart &&
+            normalizedCheckOut <= bookedEnd) ||
+          (normalizedCheckIn <= bookedStart && normalizedCheckOut >= bookedEnd)
+        ) {
+          roomAvailability.set(booking.room_number, false);
+        }
+      });
+
+      // Check if any rooms are still available
+      for (let [, isAvailable] of roomAvailability) {
+        if (isAvailable) {
+          return true; // At least one room is available
+        }
       }
-    }
 
-    return false;
-  };
+      return false; // No rooms available
+    },
+    [allRoomsOfType, existingBookings]
+  );
 
-  const validateDateRange = (checkIn, checkOut) => {
-    const normalizedCheckIn = normalizeDate(checkIn);
-    const normalizedCheckOut = normalizeDate(checkOut);
+  const validateDateRange = useCallback(
+    (checkIn, checkOut) => {
+      const normalizedCheckIn = normalizeDate(checkIn);
+      const normalizedCheckOut = normalizeDate(checkOut);
 
-    for (const booking of existingBookings) {
-      const bookedStart = normalizeDate(booking.check_in_date);
-      const bookedEnd = normalizeDate(booking.check_out_date);
-
-      if (
-        (normalizedCheckIn >= bookedStart && normalizedCheckIn < bookedEnd) ||
-        (normalizedCheckOut > bookedStart && normalizedCheckOut <= bookedEnd) ||
-        (normalizedCheckIn <= bookedStart && normalizedCheckOut >= bookedEnd)
-      ) {
+      // Basic validation
+      if (normalizedCheckOut <= normalizedCheckIn) {
         return {
           isValid: false,
-          message: `Room is already booked from ${format(
-            bookedStart,
-            "MMM dd, yyyy"
-          )} to ${format(bookedEnd, "MMM dd, yyyy")}`,
+          message: "Check-out date must be after check-in date",
         };
       }
-    }
 
-    return { isValid: true };
-  };
+      // Check if date range is available
+      const isAvailable = isDateRangeAvailable(checkIn, checkOut);
+
+      if (!isAvailable) {
+        // Find conflicting bookings to show in error message
+        const conflictingBookings = existingBookings.filter((booking) => {
+          const bookedStart = normalizeDate(booking.check_in_date);
+          const bookedEnd = normalizeDate(booking.check_out_date);
+
+          return (
+            (normalizedCheckIn >= bookedStart &&
+              normalizedCheckIn < bookedEnd) ||
+            (normalizedCheckOut > bookedStart &&
+              normalizedCheckOut <= bookedEnd) ||
+            (normalizedCheckIn <= bookedStart &&
+              normalizedCheckOut >= bookedEnd)
+          );
+        });
+
+        if (conflictingBookings.length > 0) {
+          // Find the latest check-out date among conflicting bookings
+          const latestCheckOut = new Date(
+            Math.max(
+              ...conflictingBookings.map((b) =>
+                normalizeDate(b.check_out_date).getTime()
+              )
+            )
+          );
+
+          return {
+            isValid: false,
+            message: `All ${roomType} rooms are booked for your selected dates. Try dates starting from ${format(
+              addDays(latestCheckOut, 1),
+              "MMM dd, yyyy"
+            )}`,
+          };
+        }
+
+        return {
+          isValid: false,
+          message: "No rooms available for the selected dates",
+        };
+      }
+
+      return { isValid: true };
+    },
+    [roomType, existingBookings, isDateRangeAvailable]
+  );
 
   const validateDates = (checkIn, checkOut) => {
     setDateValidationError("");
@@ -425,25 +538,17 @@ export default function Book() {
     const dateStr = format(date, "yyyy-MM-dd");
 
     if (type === "checkIn") {
-      if (
-        formData.checkOutDate &&
-        normalizeDate(formData.checkOutDate) <= date
-      ) {
-        const nextDay = addDays(date, 1);
-        setFormData({
-          ...formData,
-          checkInDate: dateStr,
-          checkOutDate: format(nextDay, "yyyy-MM-dd"),
-        });
-      } else {
-        setFormData({
-          ...formData,
-          checkInDate: dateStr,
-        });
-      }
+      // Set default check-out to next day if not set
+      const nextDay = addDays(date, 1);
+      setFormData({
+        ...formData,
+        checkInDate: dateStr,
+        checkOutDate: formData.checkOutDate || format(nextDay, "yyyy-MM-dd"),
+      });
       setShowCalendar({ checkIn: false, checkOut: false });
     } else if (type === "checkOut") {
-      if (normalizeDate(formData.checkInDate) >= date) {
+      // Validate check-out date is after check-in
+      if (formData.checkInDate && date <= parseISO(formData.checkInDate)) {
         alert("Check-out date must be after check-in date");
         return;
       }
@@ -486,6 +591,7 @@ export default function Book() {
           id: data.id,
           title:
             roomTitle ||
+            data.room_title ||
             data.room_category
               .split("-")
               .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -494,12 +600,13 @@ export default function Book() {
           discountedPrice: data.discounted_price_per_night,
           rating: data.user_ratings || 4.5,
           guests: data.no_of_guest,
-          size: data.room_dismesion,
+          size: data.room_dimension,
           roomNumber: data.room_number,
           floor: data.floor || "3rd",
           view: data.view || "Ocean View",
           description: data.room_description,
           images: images,
+          amenities: data.amenities || [],
         });
       }
     } catch (error) {
@@ -636,6 +743,42 @@ export default function Book() {
     }
   };
 
+  // Find an available room for the selected dates
+  const findAvailableRoom = useCallback(() => {
+    if (!formData.checkInDate || !formData.checkOutDate) return null;
+
+    const checkIn = parseISO(formData.checkInDate);
+    const checkOut = parseISO(formData.checkOutDate);
+
+    // Create a set of booked room numbers for the selected dates
+    const bookedRoomNumbers = new Set();
+    existingBookings.forEach((booking) => {
+      const bookedStart = parseISO(booking.check_in_date);
+      const bookedEnd = parseISO(booking.check_out_date);
+
+      // Check if booking overlaps with selected dates
+      if (
+        (checkIn >= bookedStart && checkIn < bookedEnd) ||
+        (checkOut > bookedStart && checkOut <= bookedEnd) ||
+        (checkIn <= bookedStart && checkOut >= bookedEnd)
+      ) {
+        bookedRoomNumbers.add(booking.room_number);
+      }
+    });
+
+    // Find the first available room
+    const availableRoom = allRoomsOfType.find(
+      (room) => !bookedRoomNumbers.has(room.room_number)
+    );
+
+    return availableRoom;
+  }, [
+    formData.checkInDate,
+    formData.checkOutDate,
+    existingBookings,
+    allRoomsOfType,
+  ]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -661,10 +804,19 @@ export default function Book() {
       return;
     }
 
-    // Validate against existing bookings
-    const validation = validateDateRange(checkIn, checkOut);
-    if (!validation.isValid) {
-      alert(validation.message);
+    // Check availability
+    const isAvailable = isDateRangeAvailable(checkIn, checkOut);
+    if (!isAvailable) {
+      alert(
+        "Sorry, no rooms are available for the selected dates. Please choose different dates."
+      );
+      return;
+    }
+
+    // Find an available room
+    const availableRoom = findAvailableRoom();
+    if (!availableRoom) {
+      alert("Could not find an available room. Please try again.");
       return;
     }
 
@@ -719,11 +871,11 @@ export default function Book() {
         roomImageToSave = room.images[0];
       }
 
-      // Prepare booking data
+      // Prepare booking data with the specific available room
       const bookingFormData = {
         check_in_date: formData.checkInDate,
         check_out_date: formData.checkOutDate,
-        room_number: room?.roomNumber || `Room ${roomId?.slice(-4)}`,
+        room_number: availableRoom.room_number,
         guest_name: formData.guestName,
         guest_email: formData.guestEmail,
         guest_phone: formData.guestPhone,
@@ -774,7 +926,7 @@ export default function Book() {
           user_id: currentGuestId,
           guest_email: formData.guestEmail,
           guest_name: formData.guestName,
-          room_number: room?.roomNumber,
+          room_number: availableRoom.room_number,
           room_image: roomImageToSave,
         });
 
@@ -996,10 +1148,7 @@ export default function Book() {
   const getCalendarDays = () => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const startDate = startOfMonth(currentMonth);
-    const endDate = endOfMonth(currentMonth);
-
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     return days.map((day) => {
       const normalizedDay = normalizeDate(day);
@@ -1011,7 +1160,7 @@ export default function Book() {
         isToday: isSameDay(normalizedDay, today),
         isPast:
           isBefore(normalizedDay, today) && !isSameDay(normalizedDay, today),
-        isBooked: isDateBooked(day),
+        isBooked: !isDateAvailable(day),
         isSelected:
           (formData.checkInDate &&
             isSameDay(normalizedDay, normalizeDate(formData.checkInDate))) ||
@@ -1151,7 +1300,7 @@ export default function Book() {
                 </div>
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-rose-50 border border-rose-200 rounded mr-1"></div>
-                  <span className="text-gray-600">Booked</span>
+                  <span className="text-gray-600">All Rooms Booked</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-gray-100 rounded mr-1"></div>
@@ -1180,6 +1329,32 @@ export default function Book() {
     return validImages.length > 0 ? validImages[0] : null;
   };
 
+  // Calculate available room count for display
+  const getAvailableRoomCount = useCallback(() => {
+    if (!formData.checkInDate || !formData.checkOutDate) {
+      return { available: 0, total: allRoomsOfType.length };
+    }
+
+    const isAvailable = isDateRangeAvailable(
+      parseISO(formData.checkInDate),
+      parseISO(formData.checkOutDate)
+    );
+
+    // Count actual available rooms
+    const availableRoom = findAvailableRoom();
+
+    return {
+      available: isAvailable && availableRoom ? 1 : 0,
+      total: allRoomsOfType.length,
+    };
+  }, [
+    formData.checkInDate,
+    formData.checkOutDate,
+    allRoomsOfType,
+    isDateRangeAvailable,
+    findAvailableRoom,
+  ]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-32 pb-20">
@@ -1192,6 +1367,7 @@ export default function Book() {
       </div>
     );
   }
+
   if (bookingSuccess) {
     return (
       <div className="min-h-screen bg-gray-50 pt-32 pb-20">
@@ -1378,6 +1554,8 @@ export default function Book() {
     );
   }
 
+  const availability = getAvailableRoomCount();
+
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1476,43 +1654,55 @@ export default function Book() {
                       </div>
                     </div>
 
-                    {/* Booking Calendar Preview */}
+                    {/* Availability Status */}
                     <div className="mt-6 pt-6 border-t border-gray-200">
                       <h4 className="font-semibold text-gray-900 mb-4">
                         Availability Status
                       </h4>
-                      {existingBookings.length > 0 ? (
-                        <div className="space-y-2">
-                          <p className="text-sm text-gray-600">
-                            Booked date ranges:
-                          </p>
-                          <ul className="space-y-1 text-sm max-h-32 overflow-y-auto pr-2">
-                            {existingBookings.map((booking, index) => (
-                              <li
-                                key={index}
-                                className="flex items-center text-gray-700"
-                              >
-                                <XCircle className="w-3 h-3 mr-2 text-rose-500 shrink-0" />
-                                <span className="truncate">
-                                  {format(
-                                    normalizeDate(booking.check_in_date),
-                                    "MMM dd"
-                                  )}{" "}
-                                  -{" "}
-                                  {format(
-                                    normalizeDate(booking.check_out_date),
-                                    "MMM dd, yyyy"
-                                  )}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">
+                            Total {roomType} rooms:
+                          </span>
+                          <span className="font-semibold">
+                            {availability.total}
+                          </span>
                         </div>
-                      ) : (
-                        <p className="text-sm text-emerald-600">
-                          ✓ All dates available for booking
-                        </p>
-                      )}
+                        {formData.checkInDate && formData.checkOutDate && (
+                          <div
+                            className={`p-3 rounded-lg ${
+                              availability.available > 0
+                                ? "bg-emerald-50 border border-emerald-200"
+                                : "bg-rose-50 border border-rose-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">
+                                {availability.available > 0
+                                  ? "Available for selected dates"
+                                  : "No rooms available"}
+                              </span>
+                              <span
+                                className={`font-bold ${
+                                  availability.available > 0
+                                    ? "text-emerald-600"
+                                    : "text-rose-600"
+                                }`}
+                              >
+                                {availability.available} room
+                                {availability.available !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {existingBookings.length > 0 && (
+                          <div className="text-xs text-gray-500">
+                            {existingBookings.length} active booking
+                            {existingBookings.length !== 1 ? "s" : ""} for this
+                            room type
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Pricing Summary */}
@@ -1572,9 +1762,9 @@ export default function Book() {
                         Booking as Guest
                       </p>
                       <p className="text-sm text-sky-700">
-                        You're booking as a guest. You'll receive booking
-                        confirmation via email. Optionally create an account
-                        later to manage your bookings.
+                        You&apos;re booking as a guest. You&apos;ll receive
+                        booking confirmation via email. Optionally create an
+                        account later to manage your bookings.
                       </p>
                     </div>
                   </div>
@@ -1697,6 +1887,10 @@ export default function Book() {
                           </span>
                           <span className="font-semibold ml-2">
                             • {formatPrice(calculatedValues.totalAmount)} total
+                          </span>
+                          <span className="block mt-1">
+                            Rooms available: {availability.available} of{" "}
+                            {availability.total}
                           </span>
                         </p>
                       </div>
@@ -1840,7 +2034,8 @@ export default function Book() {
                       !formData.guestName ||
                       !formData.guestEmail ||
                       !formData.guestPhone ||
-                      !paystackLoaded
+                      !paystackLoaded ||
+                      availability.available === 0
                     }
                     className="px-8 py-3 bg-sky-600 cursor-pointer text-white rounded-full font-semibold hover:bg-sky-700 hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -1849,6 +2044,8 @@ export default function Book() {
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                         Processing Payment...
                       </span>
+                    ) : availability.available === 0 ? (
+                      "No Rooms Available"
                     ) : (
                       `Pay ${formatPrice(calculatedValues.totalAmount)}`
                     )}

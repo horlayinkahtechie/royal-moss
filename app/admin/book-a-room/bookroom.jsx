@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Calendar,
   User,
   CreditCard,
-  DollarSign,
   Bed,
   Users,
+  Clock,
   Shield,
   CheckCircle,
   XCircle,
@@ -20,12 +20,14 @@ import {
   Wind,
   Coffee,
   Waves,
+  Plus,
   CalendarDays,
   UserCheck,
   Receipt,
   Wallet,
   Smartphone,
   ChevronLeft,
+  ChevronRight,
   Check,
   X,
   Mail,
@@ -33,19 +35,20 @@ import {
 } from "lucide-react";
 import supabase from "../../lib/supabase";
 import Sidebar from "@/app/_components/admin/Sidebar";
-import { useRouter } from "next/navigation";
+import { FaNairaSign } from "react-icons/fa6";
 
+// Helper function to format dates
 const formatDate = (date) => {
   return new Date(date).toISOString().split("T")[0];
 };
 
+// Get today's date and tomorrow's date for default values
 const today = formatDate(new Date());
 const tomorrow = formatDate(
   new Date(new Date().setDate(new Date().getDate() + 1))
 );
 
 export default function AdminBookRoom() {
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -76,7 +79,7 @@ export default function AdminBookRoom() {
   // Step 3: Payment details
   const [paymentDetails, setPaymentDetails] = useState({
     paymentMethod: "cash",
-    amountPaid: "",
+    amountPaid: 0,
     transactionId: "",
     paymentStatus: "pending",
   });
@@ -84,36 +87,10 @@ export default function AdminBookRoom() {
   // Current step
   const [currentStep, setCurrentStep] = useState(1);
 
+  // Fetch room categories on mount
   useEffect(() => {
-    const checkAdminRole = async () => {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        router.replace("/unauthorized");
-        return;
-      }
-
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("user_role")
-        .eq("id", user.id)
-        .single();
-
-      // ❌ Not admin → unauthorized
-      if (userError || userData?.user_role !== "admin") {
-        router.replace("/unauthorized");
-        return;
-      }
-
-      setLoading(false);
-      fetchRoomCategories();
-    };
-
-    checkAdminRole();
-  }, [router]);
+    fetchRoomCategories();
+  }, []);
 
   const fetchRoomCategories = async () => {
     try {
@@ -294,14 +271,22 @@ export default function AdminBookRoom() {
     return Math.ceil(timeDiff / (1000 * 3600 * 24));
   };
 
+  // Safely parse price to integer
+  const parsePrice = (price) => {
+    if (!price && price !== 0) return 0;
+    // Remove any non-numeric characters except decimal point
+    const cleaned = String(price).replace(/[^0-9.-]+/g, "");
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : Math.round(num); // Convert to integer for bigint field
+  };
+
   // Calculate total amount for selected room
   const calculateTotalAmount = () => {
     if (!selectedRoom) return 0;
     const nights = calculateNights();
-    const price =
-      selectedRoom.discounted_price_per_night ||
-      selectedRoom.price_per_night ||
-      0;
+    const price = parsePrice(
+      selectedRoom.discounted_price_per_night || selectedRoom.price_per_night
+    );
     return nights * price;
   };
 
@@ -313,6 +298,13 @@ export default function AdminBookRoom() {
     }
   };
 
+  // Validate amount and convert to number safely
+  const parseAmount = (amount) => {
+    if (!amount && amount !== 0) return 0;
+    const num = parseFloat(amount);
+    return isNaN(num) ? 0 : Math.round(num); // Convert to integer for bigint field
+  };
+
   // Handle form submission
   const handleSubmitBooking = async (e) => {
     e.preventDefault();
@@ -320,54 +312,75 @@ export default function AdminBookRoom() {
     try {
       setLoading(true);
 
+      // Validate amount paid
+      const amountPaid = parseAmount(paymentDetails.amountPaid);
+      const totalAmount = calculateTotalAmount();
+
+      if (
+        paymentDetails.paymentMethod === "transfer" &&
+        !paymentDetails.transactionId
+      ) {
+        alert("Please enter transaction ID for bank transfer");
+        setLoading(false);
+        return;
+      }
+
       // Generate a unique booking ID
       const bookingId = `ADMIN-${Date.now().toString().slice(-6)}`;
 
-      // Prepare booking data
+      // Parse prices to integers for database
+      const pricePerNight = parsePrice(selectedRoom.price_per_night);
+      const discountedPricePerNight = parsePrice(
+        selectedRoom.discounted_price_per_night
+      );
+
+      // Prepare booking data with proper data types
       const bookingData = {
+        created_at: new Date().toISOString(),
         booking_id: bookingId,
         room_number: selectedRoom.room_number,
         guest_name: `${guestDetails.firstName} ${guestDetails.lastName}`,
         guest_email: guestDetails.email,
         guest_phone: guestDetails.phone,
         room_category: selectedRoom.room_category,
-        room_title: selectedRoom.room_category,
+        room_title: selectedRoom.room_title,
         check_in_date: searchCriteria.checkInDate,
         check_out_date: searchCriteria.checkOutDate,
         no_of_nights: calculateNights(),
         no_of_guests: searchCriteria.numberOfGuests,
-        price_per_night: selectedRoom.price_per_night,
-        discounted_price_per_night: selectedRoom.discounted_price_per_night,
-        total_amount: calculateTotalAmount(),
+        price_per_night: pricePerNight,
+        discounted_price_per_night: discountedPricePerNight,
         currency: "NGN",
-        payment_status:
-          paymentDetails.amountPaid >= calculateTotalAmount()
-            ? "paid"
-            : paymentDetails.amountPaid > 0
-            ? "partial"
-            : "pending",
+        payment_status: "paid",
         payment_method: paymentDetails.paymentMethod,
-        user_id: "Booked by admin",
-        payment_reference: paymentDetails.transactionId,
+        total_amount: amountPaid,
+        payment_reference: paymentDetails.transactionId || null,
         booking_status: "confirmed",
-        special_requests: guestDetails.specialRequests,
+        special_requests: guestDetails.specialRequests || null,
         booked_by_admin: true,
-        payment_data: paymentDetails.transactionId,
-        room_image: selectedRoom.room_image,
         admin_notes: `Booking created by admin. Payment method: ${paymentDetails.paymentMethod}`,
       };
 
+      console.log("Booking data to insert:", bookingData);
+      console.log("Price per night type:", typeof pricePerNight);
+      console.log("Discounted price type:", typeof discountedPricePerNight);
+      console.log("Total amount type:", typeof totalAmount);
+      console.log("Amount paid type:", typeof amountPaid);
+
       // Insert booking into database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("bookings")
         .insert([bookingData])
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error details:", error);
+        throw error;
+      }
 
       // Success - reset form and show success message
       alert(
-        `✅ Booking created successfully!\nBooking ID: ${bookingId}\nRoom: ${selectedRoom.room_number}\nGuest: ${guestDetails.firstName} ${guestDetails.lastName}`
+        `✅ Booking created successfully!\nBooking ID: ${bookingId}\nRoom: ${selectedRoom.room_number}\nGuest: ${guestDetails.firstName} ${guestDetails.lastName}\nTotal: ₦${totalAmount}`
       );
 
       // Reset to step 1 and refresh availability
@@ -383,7 +396,7 @@ export default function AdminBookRoom() {
       });
       setPaymentDetails({
         paymentMethod: "cash",
-        amountPaid: "",
+        amountPaid: 0,
         transactionId: "",
         paymentStatus: "pending",
       });
@@ -392,7 +405,21 @@ export default function AdminBookRoom() {
       await checkAvailability();
     } catch (error) {
       console.error("Error creating booking:", error);
-      alert("❌ Failed to create booking. Please try again.");
+
+      // More detailed error message
+      if (error.code === "22P02") {
+        alert(
+          "❌ Database error: Invalid data format. Please check that all numeric fields are valid numbers."
+        );
+      } else if (error.message.includes("bigint")) {
+        alert(
+          "❌ Database error: Invalid number format. Please ensure amounts are whole numbers without decimals."
+        );
+      } else {
+        alert(
+          `❌ Failed to create booking: ${error.message || "Please try again."}`
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -434,7 +461,9 @@ export default function AdminBookRoom() {
 
   // Room card component
   const RoomCard = ({ room }) => {
-    const price = room.discounted_price_per_night || room.price_per_night;
+    const price = parsePrice(
+      room.discounted_price_per_night || room.price_per_night
+    );
 
     return (
       <div
@@ -448,7 +477,7 @@ export default function AdminBookRoom() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-linear-to-br from-sky-900/50 to-purple-900/50 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-sky-900/50 to-purple-900/50 rounded-xl flex items-center justify-center">
                 <Bed className="w-6 h-6 text-gray-400" />
               </div>
               <div>
@@ -483,7 +512,7 @@ export default function AdminBookRoom() {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-emerald-400">${price}</div>
+            <div className="text-2xl font-bold text-emerald-400">₦{price}</div>
             <div className="text-sm text-gray-400">per night</div>
           </div>
         </div>
@@ -513,7 +542,7 @@ export default function AdminBookRoom() {
         {renderAmenities(room.amenities)}
 
         <button
-          className={`w-full mt-6 py-3 cursor-pointer rounded-xl font-medium transition-all ${
+          className={`w-full mt-6 py-3 rounded-xl cursor-pointer font-medium transition-all ${
             room.isAvailable
               ? "bg-sky-600 hover:bg-sky-700 text-white"
               : "bg-gray-900/50 text-gray-500 cursor-not-allowed"
@@ -527,15 +556,15 @@ export default function AdminBookRoom() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Top Navigation Bar */}
-      <div className="sticky top-0 z-40">
+      <div className="sticky top-0 z-40 bg-gray-900/80 backdrop-blur-xl border-b border-gray-800">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 cursor-pointer hover:bg-gray-800/50 rounded-xl transition-colors lg:hidden"
+                className="p-2 hover:bg-gray-800/50 rounded-xl cursor-pointer transition-colors lg:hidden"
               >
                 <svg
                   className="w-5 h-5"
@@ -551,21 +580,12 @@ export default function AdminBookRoom() {
                   />
                 </svg>
               </button>
-
-              <div>
-                <h1 className="text-2xl font-bold text-white">
-                  Admin - Book a Room
-                </h1>
-                <p className="text-sm text-gray-400">
-                  Book rooms on behalf of guests
-                </p>
-              </div>
             </div>
 
             {currentStep > 1 && (
               <button
                 onClick={() => setCurrentStep(currentStep - 1)}
-                className="flex cursor-pointer items-center gap-2 px-4 py-2 border border-gray-600 hover:bg-gray-700/50 rounded-xl transition-colors"
+                className="flex items-center gap-2 px-4 py-2 border cursor-pointer border-gray-600 hover:bg-gray-700/50 rounded-xl transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" />
                 Back
@@ -586,6 +606,18 @@ export default function AdminBookRoom() {
 
         {/* Main Content */}
         <main className="flex-1 p-6">
+          <div className="w-full pb-7">
+            <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-6 pb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-white">
+                  Admin - Book a Room
+                </h1>
+                <p className="text-sm text-gray-400">
+                  Book rooms on behalf of guests
+                </p>
+              </div>
+            </div>
+          </div>
           {/* Progress Steps */}
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center">
@@ -771,7 +803,7 @@ export default function AdminBookRoom() {
                     disabled={
                       checkingAvailability || !searchCriteria.roomCategory
                     }
-                    className="px-8 cursor-pointer py-4 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                    className="px-8 py-4 bg-sky-600 hover:bg-sky-700 cursor-pointer disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center gap-2"
                   >
                     {checkingAvailability ? (
                       <>
@@ -859,7 +891,7 @@ export default function AdminBookRoom() {
                 <div className="bg-gray-900/30 rounded-xl p-6 mb-8">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-linear-to-br from-emerald-900/50 to-sky-900/50 rounded-xl flex items-center justify-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-900/50 to-sky-900/50 rounded-xl flex items-center justify-center">
                         <Bed className="w-8 h-8 text-gray-400" />
                       </div>
                       <div>
@@ -912,9 +944,9 @@ export default function AdminBookRoom() {
                     <div className="space-y-2">
                       <div className="text-sm text-gray-400">Total Amount</div>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-emerald-400" />
+                        <FaNairaSign className="w-4 h-4 text-emerald-400" />
                         <span className="text-2xl font-bold text-emerald-400">
-                          ${calculateTotalAmount()}
+                          ₦{calculateTotalAmount()}
                         </span>
                       </div>
                     </div>
@@ -1001,23 +1033,6 @@ export default function AdminBookRoom() {
 
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Address
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
-                        <textarea
-                          name="address"
-                          value={guestDetails.address}
-                          onChange={handleGuestDetailsChange}
-                          rows="2"
-                          className="w-full pl-12 pr-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 resize-none"
-                          placeholder="Street address, city, state, zip code"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         Special Requests
                       </label>
                       <textarea
@@ -1035,7 +1050,7 @@ export default function AdminBookRoom() {
                     <button
                       type="button"
                       onClick={() => setCurrentStep(1)}
-                      className="px-6 py-3 border cursor-pointer border-gray-600 hover:bg-gray-700/50 text-white rounded-xl font-medium transition-colors"
+                      className="px-6 py-3 border border-gray-600 cursor-pointer hover:bg-gray-700/50 text-white rounded-xl font-medium transition-colors"
                     >
                       Back to Room Selection
                     </button>
@@ -1048,7 +1063,7 @@ export default function AdminBookRoom() {
                         !guestDetails.email ||
                         !guestDetails.phone
                       }
-                      className="px-6 py-3 bg-sky-600 cursor-pointer hover:bg-sky-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                      className="px-6 py-3 bg-sky-600 hover:bg-sky-700 cursor-pointer disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
                     >
                       Continue to Payment
                     </button>
@@ -1136,9 +1151,11 @@ export default function AdminBookRoom() {
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Room Rate:</span>
                         <span className="font-medium text-white">
-                          $
-                          {selectedRoom.discounted_price_per_night ||
-                            selectedRoom.price_per_night}{" "}
+                          ₦
+                          {parsePrice(
+                            selectedRoom.discounted_price_per_night ||
+                              selectedRoom.price_per_night
+                          )}{" "}
                           × {calculateNights()} nights
                         </span>
                       </div>
@@ -1147,7 +1164,7 @@ export default function AdminBookRoom() {
                           Total Amount:
                         </span>
                         <span className="text-2xl font-bold text-emerald-400">
-                          ${calculateTotalAmount()}
+                          ₦{calculateTotalAmount()}
                         </span>
                       </div>
                     </div>
@@ -1223,10 +1240,10 @@ export default function AdminBookRoom() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Amount Paid ($)
+                          Amount Paid (₦)
                         </label>
                         <div className="relative">
-                          <DollarSign className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <FaNairaSign className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <input
                             type="number"
                             name="amountPaid"
@@ -1240,10 +1257,10 @@ export default function AdminBookRoom() {
                           />
                         </div>
                         <div className="mt-2 text-sm text-gray-400">
-                          Balance: $
+                          Balance: ₦
                           {(
                             calculateTotalAmount() -
-                            (parseFloat(paymentDetails.amountPaid) || 0)
+                            (parseAmount(paymentDetails.amountPaid) || 0)
                           ).toFixed(2)}
                         </div>
                       </div>
@@ -1259,7 +1276,6 @@ export default function AdminBookRoom() {
                           className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white"
                         >
                           <option value="pending">Pending</option>
-
                           <option value="paid">Paid</option>
                         </select>
                       </div>
@@ -1275,10 +1291,10 @@ export default function AdminBookRoom() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Amount Paid ($)
+                          Amount Paid (₦)
                         </label>
                         <div className="relative">
-                          <DollarSign className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <FaNairaSign className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <input
                             type="number"
                             name="amountPaid"
@@ -1322,6 +1338,7 @@ export default function AdminBookRoom() {
                           className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white"
                         >
                           <option value="pending">Pending</option>
+
                           <option value="paid">Paid</option>
                         </select>
                       </div>

@@ -155,7 +155,7 @@ const Testimonials = () => {
               }
             `}</style>
 
-            {testimonials.map((testimonial, index) => (
+            {testimonials.map((testimonial) => (
               <div
                 key={testimonial.name}
                 className="shrink-0 w-80 md:w-auto md:shrink md:min-w-0 group bg-white rounded-3xl shadow-xl p-8 border border-gray-200 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2"

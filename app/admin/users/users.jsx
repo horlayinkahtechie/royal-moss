@@ -1043,11 +1043,11 @@ export default function UsersPage() {
     return (
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 hover:border-purple-500/50 transition-all duration-300 overflow-hidden group">
         {/* User Header */}
-        <div className="relative h-40 bg-gradient-to-br from-purple-900/50 to-sky-900/50 p-6">
+        <div className="relative h-40 bg-linear-to-br from-purple-900/50 to-sky-900/50 p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-sky-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-16 h-16 bg-linear-to-br from-sky-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                   {userInitials}
                 </div>
                 {user.email_confirmed_at && (
@@ -1169,7 +1169,7 @@ export default function UsersPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-br from-sky-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-16 h-16 bg-linear-to-br from-sky-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                 {userInitials}
               </div>
               {user.email_confirmed_at && (
@@ -1355,7 +1355,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Modals */}
       {showUserModal && <UserDetailModal />}
       {showEditModal && <EditUserModal />}
@@ -1529,12 +1529,6 @@ export default function UsersPage() {
               <h2 className="text-xl font-bold text-white">
                 Users ({filteredUsers.length})
               </h2>
-              <div className="flex items-center gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors cursor-pointer">
-                  <Download className="w-5 h-5" />
-                  Export CSV
-                </button>
-              </div>
             </div>
 
             {/* Loading State */}

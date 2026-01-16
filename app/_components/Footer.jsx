@@ -52,7 +52,7 @@ const Footer = () => {
       }
 
       // Insert new subscriber
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("subscribers")
         .insert([
           {
@@ -108,21 +108,6 @@ const Footer = () => {
       if (!response.ok) {
         console.warn("Failed to send welcome email");
       }
-
-      // Option 2: Direct Supabase email (requires Resend integration)
-      /*
-      const { error } = await supabase.functions.invoke("send-email", {
-        body: { 
-          to: email, 
-          subject: "Welcome to Royal Moss Newsletter!",
-          html: "<h1>Welcome!</h1><p>Thank you for subscribing...</p>"
-        }
-      });
-      
-      if (error) {
-        console.warn("Failed to send welcome email:", error);
-      }
-      */
     } catch (error) {
       console.warn("Email sending failed:", error);
     }
@@ -164,7 +149,7 @@ const Footer = () => {
   return (
     <footer
       id="contact"
-      className="bg-gradient-to-b from-gray-900 to-black text-white pt-16 pb-8"
+      className="bg-linear-to-b from-gray-900 to-black text-white pt-16 pb-8"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Footer Content */}
@@ -179,7 +164,7 @@ const Footer = () => {
                 width={100}
                 height={100}
               />
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              <h2 className="text-3xl font-bold bg-linear-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 Royal Moss
               </h2>
             </Link>
@@ -197,7 +182,7 @@ const Footer = () => {
                   className="group relative"
                   aria-label={label}
                 >
-                  <div className="w-12 h-12 bg-gray-800/50 backdrop-blur-sm rounded-xl flex items-center justify-center transition-all duration-300 group-hover:bg-gradient-to-br group-hover:from-sky-500 group-hover:to-blue-600 group-hover:scale-110 group-hover:-translate-y-1">
+                  <div className="w-12 h-12 bg-gray-800/50 backdrop-blur-sm rounded-xl flex items-center justify-center transition-all duration-300 group-hover:bg-linear-to-br group-hover:from-sky-500 group-hover:to-blue-600 group-hover:scale-110 group-hover:-translate-y-1">
                     <Icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
                   </div>
                   <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded">
@@ -213,7 +198,7 @@ const Footer = () => {
             <div key={category}>
               <h3 className="text-lg font-bold mb-6 text-white relative inline-block">
                 {category}
-                <div className="absolute -bottom-2 left-0 w-8 h-0.5 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full"></div>
+                <div className="absolute -bottom-2 left-0 w-8 h-0.5 bg-linear-to-r from-sky-500 to-blue-600 rounded-full"></div>
               </h3>
               <ul className="space-y-3">
                 {links.map((link) => (
@@ -237,7 +222,7 @@ const Footer = () => {
           <div className="lg:col-span-2 md:col-span-2">
             <h3 className="text-lg font-bold mb-6 text-white relative inline-block">
               Stay Connected
-              <div className="absolute -bottom-2 left-0 w-8 h-0.5 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full"></div>
+              <div className="absolute -bottom-2 left-0 w-8 h-0.5 bg-linear-to-r from-sky-500 to-blue-600 rounded-full"></div>
             </h3>
 
             {/* Contact Cards */}
@@ -249,7 +234,7 @@ const Footer = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Call Us</p>
-                    <p className="font-semibold">+234 812 345 6789</p>
+                    <p className="font-semibold">+234 8089 553 225</p>
                   </div>
                 </div>
               </div>
@@ -261,7 +246,7 @@ const Footer = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Email Us</p>
-                    <p className="font-semibold">info@royalmoss.com</p>
+                    <p className="font-semibold">royalmossng@gmail.com</p>
                   </div>
                 </div>
               </div>
@@ -302,7 +287,7 @@ const Footer = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-3 cursor-pointer bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl hover:from-sky-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center shadow-lg hover:shadow-xl shadow-sky-500/10 min-w-[120px]"
+                    className="px-6 py-3 cursor-pointer bg-linear-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl hover:from-sky-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center shadow-lg hover:shadow-xl shadow-sky-500/10 min-w-30"
                   >
                     {loading ? (
                       <div className="flex items-center">
@@ -372,7 +357,7 @@ const Footer = () => {
           </div>
           <div className="relative flex justify-center">
             <div className="px-4 bg-gray-900">
-              <div className="w-24 h-0.5 bg-gradient-to-r from-transparent via-sky-500 to-transparent"></div>
+              <div className="w-24 h-0.5 bg-linear-to-r from-transparent via-sky-500 to-transparent"></div>
             </div>
           </div>
         </div>
@@ -432,7 +417,7 @@ const Footer = () => {
       {/* Floating Back to Top Button for Mobile */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="fixed bottom-6 cursor-pointer right-6 md:hidden w-12 h-12 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110 active:scale-95"
+        className="fixed bottom-6 cursor-pointer right-6 md:hidden w-12 h-12 bg-linear-to-r from-sky-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110 active:scale-95"
         aria-label="Back to top"
       >
         <svg

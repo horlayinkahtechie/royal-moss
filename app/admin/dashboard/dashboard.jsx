@@ -12,7 +12,6 @@ import {
   Eye,
   Edit,
   Download,
-  Printer,
   Mail,
   Phone,
   CalendarDays,
@@ -32,7 +31,6 @@ import {
   Trash2,
   X,
   AlertCircle,
-  Radio,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,6 +41,10 @@ import {
   parseISO,
   isValid,
   isWithinInterval,
+  subDays,
+  subMonths,
+  isAfter,
+  isBefore,
   startOfDay,
   endOfDay,
   startOfWeek,
@@ -51,8 +53,6 @@ import {
   endOfMonth,
   startOfYear,
   endOfYear,
-  subDays,
-  subMonths,
 } from "date-fns";
 import {
   LineChart,
@@ -64,7 +64,39 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { FaNairaSign } from "react-icons/fa6";
-import Image from "next/image";
+
+// Helper function to format prices with commas
+const formatPrice = (price) => {
+  if (price === undefined || price === null) return "0";
+
+  // Convert to number first
+  const num =
+    typeof price === "string"
+      ? parseFloat(price.replace(/[^0-9.-]+/g, ""))
+      : Number(price);
+
+  if (isNaN(num)) return "0";
+
+  // Format with commas
+  return num.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+};
+
+// Helper function to format price for display with Naira symbol
+const formatPriceDisplay = (price) => {
+  return `₦${formatPrice(price)}`;
+};
+
+// Helper function to safely parse and calculate price
+const parsePrice = (price) => {
+  if (!price && price !== 0) return 0;
+  // Remove any non-numeric characters except decimal point
+  const cleaned = String(price).replace(/[^0-9.-]+/g, "");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+};
 
 // Time period options
 const chartTimeFrames = [
@@ -90,7 +122,7 @@ const statusOptions = [
   "checked-in",
   "checked-out",
 ];
-const paymentStatusOptions = ["all", "paid", "pending", "partial", "refunded"];
+const paymentStatusOptions = ["all", "paid", "refunded"];
 
 export default function BookingsPage() {
   const router = useRouter();
@@ -109,9 +141,11 @@ export default function BookingsPage() {
     totalBookings: 0,
     activeStays: 0,
     totalRevenue: 0,
+    totalRevenueFormatted: "₦0",
     occupancyRate: 0,
     totalUsers: 0,
     averageBookingValue: 0,
+    averageBookingValueFormatted: "₦0",
     avgStayDuration: 0,
     topRoomType: "N/A",
   });
@@ -151,31 +185,67 @@ export default function BookingsPage() {
   const subscriptionRef = useRef(null);
   const isMountedRef = useRef(true);
 
-  // Price formatting
-  const formatPrice = (price) => {
-    if (!price && price !== 0) return "₦0";
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-
-    if (numPrice >= 1000000) {
-      const formatted = (numPrice / 1000000).toFixed(1);
-      return formatted.endsWith(".0")
-        ? `₦${formatted.slice(0, -2)}M`
-        : `₦${formatted}M`;
-    }
-    if (numPrice >= 1000) {
-      const formatted = (numPrice / 1000).toFixed(1);
-      return formatted.endsWith(".0")
-        ? `₦${formatted.slice(0, -2)}k`
-        : `₦${formatted}k`;
-    }
-    return `₦${numPrice.toLocaleString()}`;
-  };
-
   // Format time for last update
   const formatTime = (date) => {
     if (!date) return "Never";
     return format(date, "HH:mm:ss");
   };
+
+  // Get time period range
+  const getTimePeriodRange = useCallback((period) => {
+    const now = new Date();
+
+    switch (period) {
+      case "today":
+        return {
+          start: startOfDay(now),
+          end: endOfDay(now),
+        };
+      case "week":
+        return {
+          start: startOfWeek(now, { weekStartsOn: 1 }),
+          end: endOfWeek(now, { weekStartsOn: 1 }),
+        };
+      case "month":
+        return {
+          start: startOfMonth(now),
+          end: endOfMonth(now),
+        };
+      case "year":
+        return {
+          start: startOfYear(now),
+          end: endOfYear(now),
+        };
+      case "all":
+      default:
+        return null;
+    }
+  }, []);
+
+  // Filter bookings by time period
+  const filterByTimePeriod = useCallback(
+    (bookings, period) => {
+      if (period === "all") return bookings;
+
+      const range = getTimePeriodRange(period);
+      if (!range) return bookings;
+
+      return bookings.filter((booking) => {
+        try {
+          const checkInDate = parseISO(booking.check_in_date);
+          if (!isValid(checkInDate)) return false;
+
+          return (
+            isAfter(checkInDate, range.start) &&
+            isBefore(checkInDate, range.end)
+          );
+        } catch {
+          return false;
+        }
+      });
+    },
+    [getTimePeriodRange]
+  );
 
   // Initial data fetch - simplified and optimized
   const fetchInitialData = useCallback(async () => {
@@ -214,6 +284,7 @@ export default function BookingsPage() {
           room_category:
             roomMap[booking.room_number]?.room_category ||
             booking.room_category,
+          total_amount_formatted: formatPriceDisplay(booking.total_amount),
         })) || [];
 
       setAllBookings(enrichedBookings);
@@ -355,7 +426,7 @@ export default function BookingsPage() {
     setSubscription(channel);
   }, [fetchInitialData]);
 
-  // Calculate statistics
+  // Calculate statistics - FIXED: Only count bookings with payment_status = "paid" for ALL calculations
   const calculateStats = useCallback(
     (bookings) => {
       if (!bookings || bookings.length === 0) {
@@ -363,9 +434,11 @@ export default function BookingsPage() {
           totalBookings: 0,
           activeStays: 0,
           totalRevenue: 0,
+          totalRevenueFormatted: "₦0",
           occupancyRate: 0,
           totalUsers: userCount,
           averageBookingValue: 0,
+          averageBookingValueFormatted: "₦0",
           avgStayDuration: 0,
           topRoomType: "N/A",
         };
@@ -373,17 +446,31 @@ export default function BookingsPage() {
 
       const now = new Date();
 
-      // Calculate basic stats
-      const totalBookings = bookings.length;
-      const totalRevenue = bookings.reduce((sum, booking) => {
-        const amount = parseFloat(booking.total_amount) || 0;
+      // Filter only paid bookings for ALL calculations
+      const paidBookings = bookings.filter(
+        (booking) => booking.payment_status === "paid"
+      );
+
+      // Calculate basic stats for PAID bookings only
+      const totalBookings = paidBookings.length; // FIXED: Now only counts paid bookings
+
+      // Calculate revenue ONLY from paid bookings
+      const totalRevenue = paidBookings.reduce((sum, booking) => {
+        const amount = parsePrice(booking.total_amount) || 0;
         return sum + amount;
       }, 0);
-      const averageBookingValue =
-        totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
-      // Calculate active stays
-      const activeStays = bookings.filter((booking) => {
+      // Calculate average booking value from paid bookings
+      const averageBookingValue =
+        paidBookings.length > 0 ? totalRevenue / paidBookings.length : 0;
+
+      // Format revenue values
+      const totalRevenueFormatted = formatPriceDisplay(totalRevenue);
+      const averageBookingValueFormatted =
+        formatPriceDisplay(averageBookingValue);
+
+      // Calculate active stays (only for paid bookings)
+      const activeStays = paidBookings.filter((booking) => {
         try {
           const checkIn = parseISO(booking.check_in_date);
           const checkOut = parseISO(booking.check_out_date);
@@ -397,21 +484,23 @@ export default function BookingsPage() {
         }
       }).length;
 
-      // Calculate average stay duration
-      const totalNights = bookings.reduce((sum, booking) => {
+      // Calculate average stay duration (only for paid bookings)
+      const totalNights = paidBookings.reduce((sum, booking) => {
         const nights = parseInt(booking.no_of_nights) || 0;
         return sum + nights;
       }, 0);
       const avgStayDuration =
-        totalBookings > 0 ? (totalNights / totalBookings).toFixed(1) : "0";
+        paidBookings.length > 0
+          ? (totalNights / paidBookings.length).toFixed(1)
+          : "0";
 
-      // Calculate occupancy rate
+      // Calculate occupancy rate (only for paid bookings that are active)
       const totalRooms = rooms.length || 50;
       const occupancyRate = Math.round((activeStays / totalRooms) * 100);
 
-      // Find top room type
+      // Find top room type (only from paid bookings)
       const roomTypeCounts = {};
-      bookings.forEach((booking) => {
+      paidBookings.forEach((booking) => {
         const roomType = booking.room_category || "Unknown";
         roomTypeCounts[roomType] = (roomTypeCounts[roomType] || 0) + 1;
       });
@@ -426,20 +515,22 @@ export default function BookingsPage() {
       });
 
       return {
-        totalBookings,
-        activeStays,
-        totalRevenue,
-        occupancyRate,
+        totalBookings, // FIXED: Shows only paid bookings count
+        activeStays, // Only paid active stays
+        totalRevenue, // Only from paid bookings
+        totalRevenueFormatted,
+        occupancyRate, // Based on paid active stays
         totalUsers: userCount,
-        averageBookingValue,
-        avgStayDuration: parseFloat(avgStayDuration),
-        topRoomType,
+        averageBookingValue, // Only from paid bookings
+        averageBookingValueFormatted,
+        avgStayDuration: parseFloat(avgStayDuration), // Only from paid bookings
+        topRoomType, // Only from paid bookings
       };
     },
     [rooms.length, userCount]
   );
 
-  // Calculate revenue trend
+  // Calculate revenue trend - FIXED: Only count bookings with payment_status = "paid"
   const calculateRevenueTrend = useCallback((bookings, timeframe) => {
     if (!bookings || bookings.length === 0) return [];
 
@@ -460,13 +551,23 @@ export default function BookingsPage() {
         startDate = subMonths(now, 60);
         groupFormat = "yyyy";
         break;
+      case "all":
+        startDate = subMonths(now, 60);
+        groupFormat = "yyyy";
+        break;
       default:
         startDate = subMonths(now, 12);
         groupFormat = "MMM yyyy";
     }
 
     const revenueMap = {};
-    bookings.forEach((booking) => {
+
+    // Filter only paid bookings for revenue trend
+    const paidBookings = bookings.filter(
+      (booking) => booking.payment_status === "paid"
+    );
+
+    paidBookings.forEach((booking) => {
       try {
         const bookingDate = parseISO(booking.created_at);
         if (!isValid(bookingDate)) return;
@@ -492,7 +593,7 @@ export default function BookingsPage() {
           revenueMap[periodKey] = { period: displayKey, revenue: 0 };
         }
 
-        revenueMap[periodKey].revenue += parseFloat(booking.total_amount) || 0;
+        revenueMap[periodKey].revenue += parsePrice(booking.total_amount) || 0;
       } catch (error) {
         console.error("Error processing booking date:", error);
       }
@@ -500,7 +601,12 @@ export default function BookingsPage() {
 
     return Object.values(revenueMap)
       .sort((a, b) => a.period.localeCompare(b.period))
-      .slice(-12);
+      .slice(-12)
+      .map((item) => ({
+        ...item,
+        revenue: item.revenue, // Keep as number for chart
+        revenueFormatted: formatPrice(item.revenue), // Add formatted value for tooltip
+      }));
   }, []);
 
   // Apply filters
@@ -512,6 +618,11 @@ export default function BookingsPage() {
     }
 
     let filtered = [...allBookings];
+
+    // Apply time period filter FIRST
+    if (timePeriod !== "all") {
+      filtered = filterByTimePeriod(filtered, timePeriod);
+    }
 
     // Search filter
     if (searchQuery) {
@@ -551,7 +662,7 @@ export default function BookingsPage() {
       );
     }
 
-    // Date range filter
+    // Date range filter (custom range)
     if (dateRange.start && dateRange.end) {
       filtered = filtered.filter((booking) => {
         try {
@@ -582,8 +693,8 @@ export default function BookingsPage() {
         }
       }
       if (sortBy === "total_amount") {
-        const amountA = parseFloat(a.total_amount) || 0;
-        const amountB = parseFloat(b.total_amount) || 0;
+        const amountA = parsePrice(a.total_amount) || 0;
+        const amountB = parsePrice(b.total_amount) || 0;
         return sortOrder === "desc" ? amountB - amountA : amountA - amountB;
       }
       if (sortBy === "guest_name") {
@@ -605,6 +716,8 @@ export default function BookingsPage() {
     dateRange,
     sortBy,
     sortOrder,
+    timePeriod,
+    filterByTimePeriod,
   ]);
 
   // Update stats when filtered bookings or settings change
@@ -620,9 +733,11 @@ export default function BookingsPage() {
         totalBookings: 0,
         activeStays: 0,
         totalRevenue: 0,
+        totalRevenueFormatted: "₦0",
         occupancyRate: 0,
         totalUsers: userCount,
         averageBookingValue: 0,
+        averageBookingValueFormatted: "₦0",
         avgStayDuration: 0,
         topRoomType: "N/A",
       });
@@ -781,6 +896,19 @@ export default function BookingsPage() {
     }
   };
 
+  // Reset date range when time period changes
+  useEffect(() => {
+    if (timePeriod !== "all") {
+      const range = getTimePeriodRange(timePeriod);
+      if (range) {
+        setDateRange({
+          start: format(range.start, "yyyy-MM-dd"),
+          end: format(range.end, "yyyy-MM-dd"),
+        });
+      }
+    }
+  }, [timePeriod, getTimePeriodRange]);
+
   // Component render functions
   const StatusBadge = ({ status }) => {
     const config = {
@@ -826,16 +954,6 @@ export default function BookingsPage() {
         label: "Paid",
         icon: <CheckCircle className="w-4 h-4" />,
       },
-      pending: {
-        color: "bg-amber-900/40 border-amber-700 text-amber-300",
-        label: "Pending",
-        icon: <Clock className="w-4 h-4" />,
-      },
-      partial: {
-        color: "bg-blue-900/40 border-blue-700 text-blue-300",
-        label: "Partial",
-        icon: <FaNairaSign className="w-4 h-4" />,
-      },
       refunded: {
         color: "bg-gray-800 border-gray-700 text-gray-300",
         label: "Refunded",
@@ -853,7 +971,7 @@ export default function BookingsPage() {
           <span className="text-sm font-medium text-white">{label}</span>
           {status === "partial" && (
             <span className="text-xs text-gray-300">
-              {formatPrice(amount)} of {formatPrice(total)}
+              {formatPriceDisplay(amount)} of {formatPriceDisplay(total)}
             </span>
           )}
         </div>
@@ -885,7 +1003,7 @@ export default function BookingsPage() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                   {guestInitials}
                 </div>
                 <div>
@@ -965,7 +1083,8 @@ export default function BookingsPage() {
               <div className="flex items-center gap-2">
                 <FaNairaSign className="w-4 h-4 text-emerald-400" />
                 <span className="font-bold text-lg text-white">
-                  {formatPrice(booking.total_amount)}
+                  {booking.total_amount_formatted ||
+                    formatPriceDisplay(booking.total_amount)}
                 </span>
               </div>
             </div>
@@ -1020,12 +1139,6 @@ export default function BookingsPage() {
 
               <div className="flex items-center gap-3 pt-4 border-t border-gray-700">
                 <button
-                  onClick={() => handleViewBooking(booking)}
-                  className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition-colors"
-                >
-                  <Eye className="w-4 h-4" /> View Details
-                </button>
-                <button
                   onClick={() => handleEditBooking(booking)}
                   className="flex items-center cursor-pointer gap-2 px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors"
                 >
@@ -1061,7 +1174,7 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Top Navigation Bar */}
       <div className="sticky top-0 z-40">
         <div className="px-6 py-3">
@@ -1086,24 +1199,22 @@ export default function BookingsPage() {
                 </svg>
               </button>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-3 h-3 rounded-full animate-pulse ${
-                      isSyncing ? "bg-yellow-500" : "bg-emerald-500"
-                    }`}
-                  ></div>
-                  <span
-                    className={`text-sm ${
-                      isSyncing ? "text-yellow-400" : "text-emerald-400"
-                    }`}
-                  >
-                    {isSyncing ? "Syncing..." : "Live"}
-                  </span>
-                </div>
-                <span className="text-xs text-gray-400">
-                  Updated: {formatTime(lastUpdate)}
+                <div
+                  className={`w-3 h-3 rounded-full animate-pulse ${
+                    isSyncing ? "bg-yellow-500" : "bg-emerald-500"
+                  }`}
+                ></div>
+                <span
+                  className={`text-sm ${
+                    isSyncing ? "text-yellow-400" : "text-emerald-400"
+                  }`}
+                >
+                  {isSyncing ? "Syncing..." : "Live"}
                 </span>
               </div>
+              <span className="text-xs text-gray-400">
+                Updated: {formatTime(lastUpdate)}
+              </span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -1152,19 +1263,19 @@ export default function BookingsPage() {
               <div className="flex lg:justify-end items-center gap-4">
                 <Link
                   href="/admin/bookings"
-                  className="flex items-center gap-2 px-5 text-[14px] py-3 bg-linear-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 px-5 text-[14px] py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <Eye className="w-5 h-5" /> View All Bookings
                 </Link>
                 <Link
                   href="/admin/room-availability"
-                  className="flex items-center gap-2 text-[14px] px-5 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 text-[14px] px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <CalendarCheck className="w-5 h-5" /> Check Availability
                 </Link>
                 <Link
                   href="/admin/book-a-room"
-                  className="flex items-center text-[14px] gap-2 px-5 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center text-[14px] gap-2 px-5 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <Plus className="w-5 h-5" /> Book a Room
                 </Link>
@@ -1205,30 +1316,30 @@ export default function BookingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {[
               {
-                label: "Total Bookings",
+                label: "Paid Bookings",
                 value: stats.totalBookings.toString(),
-                change: "+12%",
+                change: "Paid bookings only",
                 icon: <Calendar className="w-6 h-6" />,
                 color: "text-sky-400",
               },
               {
                 label: "Active Stays",
                 value: stats.activeStays.toString(),
-                change: "+3",
+                change: "Paid stays only",
                 icon: <User className="w-6 h-6" />,
                 color: "text-emerald-400",
               },
               {
                 label: "Total Revenue",
-                value: formatPrice(stats.totalRevenue),
-                change: "+8%",
+                value: stats.totalRevenueFormatted,
+                change: "From paid bookings",
                 icon: <FaNairaSign className="w-6 h-6" />,
                 color: "text-amber-400",
               },
               {
                 label: "Occupancy Rate",
                 value: `${stats.occupancyRate}%`,
-                change: "+4%",
+                change: "Based on paid stays",
                 icon: <Hotel className="w-6 h-6" />,
                 color: "text-purple-400",
               },
@@ -1241,7 +1352,7 @@ export default function BookingsPage() {
                   <div className={`p-3 rounded-xl bg-gray-900/30`}>
                     <div className={stat.color}>{stat.icon}</div>
                   </div>
-                  <span className="text-sm font-medium text-emerald-400">
+                  <span className="text-xs font-medium text-emerald-400">
                     {stat.change}
                   </span>
                 </div>
@@ -1263,9 +1374,11 @@ export default function BookingsPage() {
                     <span className="text-sm text-gray-400">Revenue Trend</span>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-2xl font-bold text-emerald-400">
-                        {formatPrice(stats.totalRevenue)}
+                        {stats.totalRevenueFormatted}
                       </span>
-                      <span className="text-sm text-emerald-400">total</span>
+                      <span className="text-sm text-emerald-400">
+                        (Paid bookings only)
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1304,7 +1417,10 @@ export default function BookingsPage() {
                             borderColor: "#4B5563",
                             color: "white",
                           }}
-                          formatter={(value) => [formatPrice(value), "Revenue"]}
+                          formatter={(value) => [
+                            formatPriceDisplay(value),
+                            "Revenue",
+                          ]}
                         />
                         <Line
                           type="monotone"
@@ -1344,18 +1460,21 @@ export default function BookingsPage() {
                   },
                   {
                     label: "Avg. Booking Value",
-                    value: formatPrice(stats.averageBookingValue),
+                    value: stats.averageBookingValueFormatted,
                     icon: <FaNairaSign className="w-4 h-4" />,
+                    note: "(Paid only)",
                   },
                   {
                     label: "Avg. Stay Duration",
                     value: `${stats.avgStayDuration} nights`,
                     icon: <CalendarDays className="w-4 h-4" />,
+                    note: "(Paid only)",
                   },
                   {
                     label: "Top Room Type",
                     value: stats.topRoomType,
                     icon: <Bed className="w-4 h-4" />,
+                    note: "(Paid only)",
                   },
                 ].map((stat, index) => (
                   <div
@@ -1364,9 +1483,16 @@ export default function BookingsPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="text-gray-400">{stat.icon}</div>
-                      <span className="text-sm text-gray-300">
-                        {stat.label}
-                      </span>
+                      <div>
+                        <span className="text-sm text-gray-300">
+                          {stat.label}
+                        </span>
+                        {stat.note && (
+                          <span className="text-xs text-emerald-400 block">
+                            {stat.note}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="font-medium text-white">{stat.value}</span>
                   </div>
@@ -1413,10 +1539,6 @@ export default function BookingsPage() {
                   <List className="w-5 h-5" />
                 </button>
               </div>
-
-              <button className="flex items-center cursor-pointer gap-2 px-4 py-3 border border-gray-600 hover:bg-gray-700/50 rounded-xl transition-colors text-white">
-                <Download className="w-5 h-5" /> <span>Export</span>
-              </button>
             </div>
 
             {/* Advanced Filters */}
@@ -1487,7 +1609,7 @@ export default function BookingsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Check-in Date
+                    Check-in Date Range
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -1516,6 +1638,10 @@ export default function BookingsPage() {
                   <span className="text-sm text-gray-400">
                     Showing {displayedBookings.length} of{" "}
                     {filteredBookings.length} bookings
+                    {selectedPaymentStatus === "all" &&
+                      " (all payment statuses)"}
+                    {selectedPaymentStatus === "paid" && " (paid only)"}
+                    {selectedPaymentStatus === "refunded" && " (refunded only)"}
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-400">Sort by:</span>
@@ -1554,10 +1680,11 @@ export default function BookingsPage() {
                       setSelectedRoomType("all");
                       setSelectedPaymentStatus("all");
                       setDateRange({ start: "", end: "" });
+                      setTimePeriod("all");
                     }}
                     className="flex cursor-pointer items-center gap-2 px-4 py-2.5 border border-gray-600 hover:bg-gray-700/50 rounded-xl transition-colors text-white"
                   >
-                    <RefreshCw className="w-4 h-4" /> Clear Filters
+                    <RefreshCw className="w-4 h-4" /> Clear All Filters
                   </button>
                   <button
                     onClick={fetchInitialData}
@@ -1594,7 +1721,7 @@ export default function BookingsPage() {
                 <div className="flex items-center justify-center gap-4">
                   <Link
                     href="/admin/book-a-room"
-                    className="px-6 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
+                    className="px-6 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
                   >
                     Create New Booking
                   </Link>
@@ -1605,6 +1732,7 @@ export default function BookingsPage() {
                       setSelectedRoomType("all");
                       setSelectedPaymentStatus("all");
                       setDateRange({ start: "", end: "" });
+                      setTimePeriod("all");
                     }}
                     className="px-6 py-3 cursor-pointer border border-gray-600 hover:bg-gray-700/50 text-white rounded-xl font-medium transition-colors"
                   >
@@ -1619,7 +1747,7 @@ export default function BookingsPage() {
                 ))}
                 <div className="text-center mt-8">
                   <Link
-                    href="/admin/all-bookings"
+                    href="/admin/bookings"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 text-white rounded-xl font-medium transition-colors"
                   >
                     <ExternalLink className="w-5 h-5" /> View All Bookings (
@@ -1635,7 +1763,7 @@ export default function BookingsPage() {
                     className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-5 hover:border-sky-500/50 transition-all duration-300"
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-10 h-10 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-10 h-10 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                         {booking.guest_name
                           ?.split(" ")
                           .map((n) => n[0])
@@ -1661,21 +1789,16 @@ export default function BookingsPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-400">Amount</span>
                         <span className="font-bold text-emerald-400">
-                          {formatPrice(booking.total_amount)}
+                          {booking.total_amount_formatted ||
+                            formatPriceDisplay(booking.total_amount)}
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleViewBooking(booking)}
-                      className="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm rounded-lg transition-colors"
-                    >
-                      View Details
-                    </button>
                   </div>
                 ))}
                 <div className="col-span-full text-center mt-8">
                   <Link
-                    href="/admin/all-bookings"
+                    href="/admin/bookings"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 text-white rounded-xl font-medium transition-colors"
                   >
                     <ExternalLink className="w-5 h-5" /> View All Bookings (
@@ -1880,9 +2003,7 @@ export default function BookingsPage() {
                       }
                       className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white"
                     >
-                      <option value="pending">Pending</option>
                       <option value="paid">Paid</option>
-                      <option value="partial">Partial</option>
                       <option value="refunded">Refunded</option>
                     </select>
                   </div>

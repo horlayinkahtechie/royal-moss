@@ -1140,15 +1140,6 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
       : [],
   });
 
-  const cleanupBlobUrls = () => {
-    // Revoke any blob URLs to prevent memory leaks
-    formData.room_image.forEach((url) => {
-      if (url.startsWith("blob:")) {
-        URL.revokeObjectURL(url);
-      }
-    });
-  };
-
   useEffect(() => {
     return () => {
       // Clean up blob URLs when component unmounts

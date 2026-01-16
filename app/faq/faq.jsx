@@ -4,19 +4,12 @@ import { useState } from "react";
 import {
   ChevronDown,
   HelpCircle,
-  MessageSquare,
-  Phone,
-  Mail,
   Sparkles,
-  Shield,
   CreditCard,
   Calendar,
   User,
-  Building,
-  Clock,
   Receipt,
   Key,
-  Globe,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -145,7 +138,7 @@ const FAQPage = () => {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-sky-900/90 via-purple-900/80 to-gray-900/90 z-10"></div>
+          <div className="absolute inset-0 bg-linear-to-br from-sky-900/90 via-purple-900/80 to-gray-900/90 z-10"></div>
           <div className="absolute inset-0">
             <div className="w-full h-full bg-[url('/images/hotel-pattern.svg')] opacity-10"></div>
           </div>
@@ -162,7 +155,7 @@ const FAQPage = () => {
 
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
               How Can We{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-purple-300">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-sky-300 to-purple-300">
                 Help You?
               </span>
             </h1>

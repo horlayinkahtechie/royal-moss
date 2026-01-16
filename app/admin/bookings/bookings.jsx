@@ -92,12 +92,11 @@ const timePeriods = [
 const statusOptions = [
   "all",
   "confirmed",
-  "pending",
   "cancelled",
   "checked-in",
   "checked-out",
 ];
-const paymentStatusOptions = ["all", "paid", "pending", "partial", "refunded"];
+const paymentStatusOptions = ["all", "paid", "refunded"];
 
 export default function BookingsPage() {
   const router = useRouter();
@@ -182,7 +181,7 @@ export default function BookingsPage() {
     }
   }, []);
 
-  // Calculate statistics
+  // Calculate statistics - FIXED: Only count bookings with payment_status = "paid"
   const calculateStatistics = useCallback(
     (bookingsData, usersCount, period, roomsData) => {
       if (!bookingsData || bookingsData.length === 0) {
@@ -199,14 +198,32 @@ export default function BookingsPage() {
       }
 
       const now = new Date();
-      let filteredBookings = bookingsData;
 
-      // Filter by time period if needed
-      if (period !== "all") {
-        filteredBookings = filterBookingsByPeriod(bookingsData, period);
+      // Filter ONLY paid bookings for ALL statistics
+      const paidBookings = bookingsData.filter(
+        (booking) => booking.payment_status === "paid"
+      );
+
+      if (paidBookings.length === 0) {
+        return {
+          totalBookings: 0,
+          activeStays: 0,
+          totalRevenue: 0,
+          occupancyRate: 0,
+          totalUsers: usersCount || 0,
+          averageBookingValue: 0,
+          avgStayDuration: 0,
+          topRoomType: "N/A",
+        };
       }
 
-      // Calculate totals
+      // Filter by time period if needed
+      let filteredBookings = paidBookings;
+      if (period !== "all") {
+        filteredBookings = filterBookingsByPeriod(paidBookings, period);
+      }
+
+      // Calculate totals from PAID bookings only
       const totalBookings = filteredBookings.length;
       const totalRevenue = filteredBookings.reduce(
         (sum, booking) => sum + (parseFloat(booking.total_amount) || 0),
@@ -215,7 +232,7 @@ export default function BookingsPage() {
       const averageBookingValue =
         totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
-      // Calculate active stays (bookings with check-in date <= now <= check-out date)
+      // Calculate active stays (only for paid bookings)
       const activeStays = filteredBookings.filter((booking) => {
         try {
           const checkIn = new Date(booking.check_in_date);
@@ -226,7 +243,7 @@ export default function BookingsPage() {
         }
       }).length;
 
-      // Calculate average stay duration
+      // Calculate average stay duration (only for paid bookings)
       const totalNights = filteredBookings.reduce(
         (sum, booking) => sum + (parseInt(booking.no_of_nights) || 0),
         0
@@ -234,11 +251,11 @@ export default function BookingsPage() {
       const avgStayDuration =
         totalBookings > 0 ? (totalNights / totalBookings).toFixed(1) : 0;
 
-      // Calculate occupancy rate
+      // Calculate occupancy rate (only for paid bookings)
       const totalRooms = roomsData?.length || 50;
       const occupancyRate = Math.round((activeStays / totalRooms) * 100);
 
-      // Find top room type
+      // Find top room type (only from paid bookings)
       const roomTypeCounts = {};
       filteredBookings.forEach((booking) => {
         const roomType = booking.room_details?.room_category || "Unknown";
@@ -255,14 +272,14 @@ export default function BookingsPage() {
       });
 
       return {
-        totalBookings,
-        activeStays,
-        totalRevenue,
-        occupancyRate,
+        totalBookings, // Only paid bookings count
+        activeStays, // Only paid active stays
+        totalRevenue, // Only from paid bookings
+        occupancyRate, // Based on paid stays only
         totalUsers: usersCount || 0,
-        averageBookingValue,
-        avgStayDuration: parseFloat(avgStayDuration),
-        topRoomType,
+        averageBookingValue, // Only from paid bookings
+        avgStayDuration: parseFloat(avgStayDuration), // Only from paid bookings
+        topRoomType, // Only from paid bookings
       };
     },
     []
@@ -305,9 +322,18 @@ export default function BookingsPage() {
     });
   };
 
-  // Calculate revenue trend
+  // Calculate revenue trend - FIXED: Only count bookings with payment_status = "paid"
   const calculateRevenueTrend = useCallback((bookingsData, timeFrame) => {
     if (!bookingsData || bookingsData.length === 0) {
+      return [];
+    }
+
+    // Filter only paid bookings for revenue trend
+    const paidBookings = bookingsData.filter(
+      (booking) => booking.payment_status === "paid"
+    );
+
+    if (paidBookings.length === 0) {
       return [];
     }
 
@@ -319,7 +345,7 @@ export default function BookingsPage() {
     // Determine date range based on time frame
     switch (timeFrame) {
       case "week":
-        startDate = subDays(now, 30); // Show last 30 days for weekly view
+        startDate = subDays(now, 30);
         groupFormat = "MMM dd";
         intervalFn = eachDayOfInterval;
         break;
@@ -329,14 +355,13 @@ export default function BookingsPage() {
         intervalFn = eachMonthOfInterval;
         break;
       case "year":
-        startDate = subYears(now, 5); // 5 years
+        startDate = subYears(now, 5);
         groupFormat = "yyyy";
         intervalFn = eachMonthOfInterval;
         break;
       case "all":
-        // Use earliest booking date
         const earliestDate = new Date(
-          Math.min(...bookingsData.map((b) => new Date(b.created_at).getTime()))
+          Math.min(...paidBookings.map((b) => new Date(b.created_at).getTime()))
         );
         startDate = earliestDate;
         groupFormat = "yyyy";
@@ -360,8 +385,8 @@ export default function BookingsPage() {
       }
     });
 
-    // Add booking revenues
-    bookingsData.forEach((booking) => {
+    // Add booking revenues (only from paid bookings)
+    paidBookings.forEach((booking) => {
       try {
         const bookingDate = new Date(
           booking.created_at || booking.check_in_date
@@ -384,7 +409,7 @@ export default function BookingsPage() {
     // Convert to array and sort
     return Array.from(revenueMap.values())
       .sort((a, b) => new Date(a.period) - new Date(b.period))
-      .slice(-12); // Show last 12 periods
+      .slice(-12);
   }, []);
 
   // Fetch all data
@@ -497,8 +522,7 @@ export default function BookingsPage() {
         setBookings(enrichedBookings);
         setRooms(roomsData || []);
 
-        // Calculate statistics based on all bookings (not just current page)
-        // We'll fetch all bookings for stats without filters for accuracy
+        // Calculate statistics based on ALL BOOKINGS but only counting PAID ones
         let allBookingsQuery = supabase.from("bookings").select("*");
 
         // Apply only status and payment filters for stats
@@ -532,7 +556,7 @@ export default function BookingsPage() {
           );
           setStats(statsData);
 
-          // Calculate revenue trend
+          // Calculate revenue trend (only from paid bookings)
           const trendData = calculateRevenueTrend(
             allEnrichedBookings,
             chartTimeFrame
@@ -693,7 +717,7 @@ export default function BookingsPage() {
     searchTimeoutRef.current = setTimeout(() => {
       setCurrentPage(1);
       fetchData(value);
-    }, 500); // 500ms delay
+    }, 500);
   };
 
   // Re-fetch when filters change
@@ -1513,7 +1537,7 @@ Hotel Management Team`);
                     Booking Status
                   </label>
                   <select
-                    value={editFormData.booking_status || "pending"}
+                    value={editFormData.booking_status}
                     onChange={(e) =>
                       setEditFormData({
                         ...editFormData,
@@ -1522,7 +1546,6 @@ Hotel Management Team`);
                     }
                     className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white"
                   >
-                    <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="checked-in">Checked In</option>
@@ -1534,7 +1557,7 @@ Hotel Management Team`);
                     Payment Status
                   </label>
                   <select
-                    value={editFormData.payment_status || "pending"}
+                    value={editFormData.payment_status}
                     onChange={(e) =>
                       setEditFormData({
                         ...editFormData,
@@ -1543,9 +1566,7 @@ Hotel Management Team`);
                     }
                     className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white"
                   >
-                    <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
-                    <option value="partial">Partial</option>
                     <option value="refunded">Refunded</option>
                   </select>
                 </div>
@@ -1701,7 +1722,7 @@ Hotel Management Team`);
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                   {guestInitials}
                 </div>
                 <div>
@@ -1883,7 +1904,7 @@ Hotel Management Team`);
       return (
         <div className="h-64 flex flex-col items-center justify-center text-gray-500">
           <BarChart className="w-16 h-16 mb-4 text-gray-600" />
-          <p>No revenue data available for the selected period</p>
+          <p>No paid revenue data available for the selected period</p>
         </div>
       );
     }
@@ -1900,7 +1921,9 @@ Hotel Management Team`);
                   .reduce((sum, item) => sum + item.revenue, 0)
                   .toLocaleString()}
               </span>
-              <span className="text-sm text-emerald-400">total</span>
+              <span className="text-sm text-emerald-400">
+                (Paid bookings only)
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -2102,7 +2125,7 @@ Hotel Management Team`);
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Modals */}
       {showBookingModal && <BookingModal />}
       {showEditModal && <EditBookingModal />}
@@ -2184,7 +2207,7 @@ Hotel Management Team`);
                 {/* Check Availability Button */}
                 <Link
                   href="/admin/room-availability"
-                  className="flex items-center gap-2 cursor-pointer px-5 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 cursor-pointer px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <CalendarCheck className="w-5 h-5" />
                   Check Availability
@@ -2192,7 +2215,7 @@ Hotel Management Team`);
 
                 <Link
                   href="/admin/quick-checkin"
-                  className="flex items-center gap-2 px-5 text-[14px] py-3 bg-linear-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 px-5 text-[14px] py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <CalendarCheck className="w-5 h-5" />
                   Check-in & Out
@@ -2201,7 +2224,7 @@ Hotel Management Team`);
                 {/* Book Room Button */}
                 <Link
                   href="/admin/book-a-room"
-                  className="flex items-center cursor-pointer gap-2 px-5 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
+                  className="flex items-center cursor-pointer gap-2 px-5 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg"
                 >
                   <Plus className="w-5 h-5" />
                   Book Room
@@ -2214,7 +2237,7 @@ Hotel Management Team`);
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
               <h2 className="text-xl font-bold text-white">
-                Performance Overview
+                Performance Overview (Paid Bookings Only)
               </h2>
               <TimePeriodSelector />
             </div>
@@ -2224,28 +2247,32 @@ Hotel Management Team`);
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {[
               {
-                label: "Total Bookings",
+                label: "Paid Bookings",
                 value: stats.totalBookings.toString(),
                 icon: <Calendar className="w-6 h-6" />,
                 color: "text-sky-400",
+                note: "Only paid bookings",
               },
               {
                 label: "Active Stays",
                 value: stats.activeStays.toString(),
                 icon: <User className="w-6 h-6" />,
                 color: "text-emerald-400",
+                note: "Paid stays only",
               },
               {
                 label: "Total Revenue",
                 value: `₦${stats.totalRevenue.toLocaleString()}`,
                 icon: <FaNairaSign className="w-6 h-6" />,
                 color: "text-amber-400",
+                note: "From paid bookings",
               },
               {
                 label: "Occupancy Rate",
                 value: `${stats.occupancyRate}%`,
                 icon: <Hotel className="w-6 h-6" />,
                 color: "text-purple-400",
+                note: "Based on paid stays",
               },
             ].map((stat, index) => (
               <div
@@ -2256,6 +2283,11 @@ Hotel Management Team`);
                   <div className={`p-3 rounded-xl bg-gray-900/30`}>
                     <div className={stat.color}>{stat.icon}</div>
                   </div>
+                  {stat.note && (
+                    <span className="text-xs text-emerald-400">
+                      {stat.note}
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-3xl font-bold text-white mb-1">
                   {stat.value}
@@ -2271,7 +2303,7 @@ Hotel Management Team`);
             <div className="lg:col-span-2 bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white">
-                  Revenue Analysis
+                  Revenue Analysis (Paid Only)
                 </h3>
                 <TrendingUp className="w-5 h-5 text-emerald-400" />
               </div>
@@ -2295,16 +2327,19 @@ Hotel Management Team`);
                     label: "Avg. Booking Value",
                     value: `₦${stats.averageBookingValue.toFixed(2)}`,
                     icon: <FaNairaSign className="w-4 h-4" />,
+                    note: "(Paid only)",
                   },
                   {
                     label: "Avg. Stay Duration",
                     value: `${stats.avgStayDuration} nights`,
                     icon: <CalendarDays className="w-4 h-4" />,
+                    note: "(Paid only)",
                   },
                   {
                     label: "Top Room Type",
                     value: stats.topRoomType,
                     icon: <Bed className="w-4 h-4" />,
+                    note: "(Paid only)",
                   },
                 ].map((stat, index) => (
                   <div
@@ -2313,9 +2348,16 @@ Hotel Management Team`);
                   >
                     <div className="flex items-center gap-3">
                       <div className="text-gray-400">{stat.icon}</div>
-                      <span className="text-sm text-gray-300">
-                        {stat.label}
-                      </span>
+                      <div>
+                        <span className="text-sm text-gray-300">
+                          {stat.label}
+                        </span>
+                        {stat.note && (
+                          <span className="text-xs text-emerald-400 block">
+                            {stat.note}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="font-medium text-white">{stat.value}</span>
                   </div>
@@ -2362,12 +2404,6 @@ Hotel Management Team`);
                   <List className="w-5 h-5" />
                 </button>
               </div>
-
-              {/* Export Button */}
-              <button className="flex cursor-pointer items-center gap-2 px-4 py-3 border border-gray-600 hover:bg-gray-700/50 rounded-xl transition-colors text-white">
-                <Download className="w-5 h-5" />
-                <span>Export</span>
-              </button>
             </div>
 
             {/* Advanced Filters */}
@@ -2551,7 +2587,7 @@ Hotel Management Team`);
                 <div className="flex items-center justify-center gap-4">
                   <Link
                     href="/admin/book-a-room"
-                    className="px-6 py-3 bg-linear-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
+                    className="px-6 py-3 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white rounded-xl font-medium transition-colors"
                   >
                     Create New Booking
                   </Link>
@@ -2589,7 +2625,7 @@ Hotel Management Team`);
                   >
                     {/* Simplified grid view card */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-10 h-10 bg-linear-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-10 h-10 bg-gradient-to-br from-sky-600 to-sky-700 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                         {booking.guest_name
                           ?.split(" ")
                           .map((n) => n[0])

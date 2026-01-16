@@ -98,27 +98,25 @@ const AboutPage = () => {
 
   const leadershipTeam = [
     {
-      name: "Adebayo Adekunle",
-      role: "Founder & Managing Director",
-      experience: "Former executive with 15+ years in West African hospitality",
+      name: "Olatunji Amosu",
+      role: "CEO/Director",
       imageColor: "bg-gradient-to-br from-sky-400 to-blue-500",
     },
     {
-      name: "Chinwe Okoro",
-      role: "Operations Director",
-      experience: "10+ years managing luxury resorts across Africa",
+      name: "Mojibola Amosu",
+      role: "COO/Director",
       imageColor: "bg-gradient-to-br from-purple-400 to-pink-500",
     },
     {
-      name: "Fatima Bello",
-      role: "Guest Experience Director",
-      experience: "Hospitality specialist trained in Dubai and Singapore",
+      name: "Oluwaseun Amosu",
+      role: "Director",
+
       imageColor: "bg-gradient-to-br from-amber-400 to-orange-500",
     },
     {
-      name: "Segun Martins",
-      role: "Sustainability Officer",
-      experience: "Environmental consultant specializing in eco-tourism",
+      name: "Olawunmi Amosu",
+      role: "Director",
+
       imageColor: "bg-gradient-to-br from-emerald-400 to-teal-500",
     },
   ];
@@ -413,24 +411,6 @@ const AboutPage = () => {
                   </h3>
                   <div className="text-sky-600 font-medium mb-3">
                     {member.role}
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {member.experience}
-                  </p>
-
-                  <div className="flex space-x-3 pt-4 border-t border-gray-100">
-                    <a
-                      href="#"
-                      className="text-gray-400 hover:text-sky-600 transition-colors"
-                    >
-                      <LinkedInIcon />
-                    </a>
-                    <a
-                      href="#"
-                      className="text-gray-400 hover:text-sky-600 transition-colors"
-                    >
-                      <TwitterIcon />
-                    </a>
                   </div>
                 </div>
               </div>

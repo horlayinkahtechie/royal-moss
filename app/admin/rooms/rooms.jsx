@@ -878,13 +878,6 @@ export default function RoomsPage() {
                 icon: <CheckCircle className="w-6 h-6" />,
                 color: "text-emerald-400",
               },
-
-              {
-                label: "Avg. Rate",
-                value: formatPrice(stats.avgRate),
-                icon: <FaNairaSign className="w-6 h-6" />,
-                color: "text-purple-400",
-              },
             ].map((stat, index) => (
               <div
                 key={index}

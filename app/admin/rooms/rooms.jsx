@@ -1122,7 +1122,6 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
     price_per_night: room.price_per_night || 0,
     discounted_price_per_night: room.discounted_price_per_night,
     no_of_guest: room.no_of_guest || 2,
-    room_dimension: room.room_dimension || "Null",
     room_description: room.room_description || "",
     amenities: room.amenities || [],
     room_availability: room.room_availability !== false,
@@ -1395,23 +1394,6 @@ function EditRoomModal({ room, onClose, onSave, categories, amenitiesList }) {
                     className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white"
                     required
                     min="1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Room Dimension
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.room_dimension}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        room_dimension: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., 30 m²"
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white"
                   />
                 </div>
               </div>

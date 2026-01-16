@@ -142,7 +142,7 @@ const FeaturedRooms = () => {
       const { data: allRooms, error: fetchError } = await supabase
         .from("rooms")
         .select(
-          "id, room_category, room_description, price_per_night, discounted_price_per_night, user_ratings, no_of_guest, room_dimension, amenities, room_image"
+          "id, room_category, room_description, price_per_night, discounted_price_per_night, user_ratings, no_of_guest, amenities, room_image"
         )
         .eq("room_availability", true);
 
@@ -173,7 +173,7 @@ const FeaturedRooms = () => {
         discountedPrice: room.discounted_price_per_night,
         rating: room.user_ratings || 4.5,
         guests: room.no_of_guest,
-        size: room.room_dimension,
+
         amenities: Array.isArray(room.amenities)
           ? room.amenities.slice(0, 3) // Show only first 3 amenities
           : room.amenities
@@ -483,10 +483,6 @@ const FeaturedRooms = () => {
                         <div className="flex items-center text-sm text-gray-600">
                           <Users className="w-4 h-4 mr-1 text-sky-500" />
                           {room.guests}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Maximize2 className="w-4 h-4 mr-1 text-purple-500" />
-                          {room.size}
                         </div>
                       </div>
                     </div>

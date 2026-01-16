@@ -185,8 +185,6 @@ export default function Availability() {
     applyFilters();
   }, [rooms, filters]);
 
-  // In your Availability component, update the fetchRooms function:
-
   const fetchRooms = async () => {
     setIsLoading(true);
     setError(null);
@@ -214,7 +212,6 @@ export default function Availability() {
       }
 
       // Fetch existing bookings for these rooms to check availability
-      // const roomIds = data.map((room) => room.id);
       const { data: bookings, error: bookingsError } = await supabase
         .from("bookings")
         .select("room_category, check_in_date, check_out_date, booking_status")
@@ -235,6 +232,38 @@ export default function Availability() {
             (booking) => booking.room_category === room.room_category
           ) || [];
 
+        // Handle room images properly - FIXED
+        let roomImages = [];
+        if (room.room_image) {
+          try {
+            // Try to parse if it's a JSON string
+            if (typeof room.room_image === "string") {
+              const parsed = JSON.parse(room.room_image);
+              if (Array.isArray(parsed)) {
+                roomImages = parsed;
+              } else {
+                // If it's a single string, wrap it in array
+                roomImages = [room.room_image];
+              }
+            } else if (Array.isArray(room.room_image)) {
+              // If it's already an array
+              roomImages = room.room_image;
+            } else {
+              // Fallback to empty array
+              roomImages = [];
+            }
+          } catch (error) {
+            console.error("Error parsing room images:", error);
+            // If parsing fails, try to use it as a single image
+            if (
+              typeof room.room_image === "string" &&
+              room.room_image.trim() !== ""
+            ) {
+              roomImages = [room.room_image];
+            }
+          }
+        }
+
         return {
           id: room.id,
           title: room.room_category
@@ -246,19 +275,14 @@ export default function Availability() {
           discountedPrice: room.discounted_price_per_night,
           rating: room.user_ratings || 4.5,
           guests: room.no_of_guest,
-          size: room.room_dismesion,
-          availability: true, // Default to true, will check dates during booking
-          bookings: roomBookings, // Store booking dates for this room
+          availability: true,
+          bookings: roomBookings,
           amenities: Array.isArray(room.amenities)
             ? room.amenities
             : room.amenities
             ? JSON.parse(room.amenities)
             : [],
-          images: Array.isArray(room.room_image)
-            ? room.room_image
-            : room.room_image
-            ? JSON.parse(room.room_image)
-            : [],
+          images: roomImages, // Use the properly parsed images
           createdAt: room.created_at,
           roomNumber: room.room_number || `Room ${room.id.slice(0, 4)}`,
           floor: room.floor || "3rd Floor",
@@ -283,7 +307,22 @@ export default function Availability() {
     }
   };
 
-  // Add a function to check if a room is available for specific dates
+  // Add this helper function to get the first available image
+  const getRoomImage = (images) => {
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return null;
+    }
+
+    // Filter out any null/undefined/empty string images
+    const validImages = images.filter((img) => img && img.trim() !== "");
+
+    if (validImages.length === 0) {
+      return null;
+    }
+
+    return validImages[0];
+  };
+
   const checkRoomAvailability = (room, checkIn, checkOut) => {
     if (!room.bookings || room.bookings.length === 0) return true;
 
@@ -394,7 +433,7 @@ export default function Availability() {
 
   const nextImage = (e) => {
     e?.stopPropagation();
-    if (selectedRoom && selectedRoom.images.length > 0) {
+    if (selectedRoom && selectedRoom.images && selectedRoom.images.length > 0) {
       setCurrentImageIndex((prevIndex) =>
         prevIndex === selectedRoom.images.length - 1 ? 0 : prevIndex + 1
       );
@@ -403,7 +442,7 @@ export default function Availability() {
 
   const prevImage = (e) => {
     e?.stopPropagation();
-    if (selectedRoom && selectedRoom.images.length > 0) {
+    if (selectedRoom && selectedRoom.images && selectedRoom.images.length > 0) {
       setCurrentImageIndex((prevIndex) =>
         prevIndex === 0 ? selectedRoom.images.length - 1 : prevIndex - 1
       );
@@ -425,13 +464,6 @@ export default function Availability() {
         url: window.location.href,
       });
     }
-  };
-
-  const getRoomImage = (images) => {
-    if (!images || images.length === 0) {
-      return null;
-    }
-    return images[0];
   };
 
   const renderAmenityIcon = (amenity) => {
@@ -606,13 +638,22 @@ export default function Availability() {
                         <div className="md:w-2/5 relative">
                           <div className="aspect-4/3 md:aspect-auto md:h-full">
                             {mainImage ? (
-                              <Image
-                                src={mainImage}
-                                alt={room.title}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 768px) 100vw, 40vw"
-                              />
+                              <div className="relative w-full h-full">
+                                <Image
+                                  src={mainImage}
+                                  alt={room.title}
+                                  fill
+                                  className="object-cover"
+                                  sizes="(max-width: 768px) 100vw, 40vw"
+                                  onError={(e) => {
+                                    console.error(
+                                      "Error loading image:",
+                                      mainImage
+                                    );
+                                    e.target.style.display = "none";
+                                  }}
+                                />
+                              </div>
                             ) : (
                               <div className="w-full h-full bg-linear-to-br from-sky-400 to-purple-500 flex items-center justify-center">
                                 <div className="text-white text-center">
@@ -663,10 +704,6 @@ export default function Availability() {
                                 <div className="flex items-center text-sm text-gray-600">
                                   <Users className="w-4 h-4 mr-1" />
                                   {room.guests} Guests
-                                </div>
-                                <div className="flex items-center text-sm text-gray-600">
-                                  <Maximize2 className="w-4 h-4 mr-1" />
-                                  {room.size}
                                 </div>
                               </div>
                             </div>
@@ -783,17 +820,28 @@ export default function Availability() {
                 {/* Left Column - Images */}
                 <div className="lg:w-2/3 relative">
                   <div className="aspect-video lg:aspect-auto lg:h-[70vh] relative overflow-hidden">
-                    {selectedRoom.images.length > 0 ? (
+                    {selectedRoom.images &&
+                    selectedRoom.images.length > 0 &&
+                    selectedRoom.images[currentImageIndex] ? (
                       <>
-                        <Image
-                          src={selectedRoom.images[currentImageIndex]}
-                          alt={`${selectedRoom.title} - Image ${
-                            currentImageIndex + 1
-                          }`}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, 66vw"
-                        />
+                        <div className="relative w-full h-full">
+                          <Image
+                            src={selectedRoom.images[currentImageIndex]}
+                            alt={`${selectedRoom.title} - Image ${
+                              currentImageIndex + 1
+                            }`}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 66vw"
+                            onError={(e) => {
+                              console.error(
+                                "Error loading modal image:",
+                                selectedRoom.images[currentImageIndex]
+                              );
+                              e.target.style.display = "none";
+                            }}
+                          />
+                        </div>
 
                         {/* Navigation Buttons */}
                         {selectedRoom.images.length > 1 && (
@@ -853,7 +901,7 @@ export default function Availability() {
                   </div>
 
                   {/* Thumbnail Gallery */}
-                  {selectedRoom.images.length > 1 && (
+                  {selectedRoom.images && selectedRoom.images.length > 1 && (
                     <div className="p-4 border-t border-gray-200">
                       <div className="flex space-x-2 overflow-x-auto">
                         {selectedRoom.images.map((image, index) => (
@@ -873,6 +921,13 @@ export default function Availability() {
                                 fill
                                 className="object-cover"
                                 sizes="80px"
+                                onError={(e) => {
+                                  console.error(
+                                    "Error loading thumbnail:",
+                                    image
+                                  );
+                                  e.target.style.display = "none";
+                                }}
                               />
                             </div>
                           </button>
@@ -927,11 +982,11 @@ export default function Availability() {
                       </div>
                       <div className="bg-gray-50 p-3 rounded-xl">
                         <div className="flex items-center text-gray-700 mb-1">
-                          <Maximize2 className="w-4 h-4 mr-2 text-purple-500" />
-                          <span className="text-sm font-medium">Size</span>
+                          <Building className="w-4 h-4 mr-2 text-emerald-500" />
+                          <span className="text-sm font-medium">Room No.</span>
                         </div>
                         <div className="text-lg font-bold text-gray-900">
-                          {selectedRoom.size}
+                          {selectedRoom.roomNumber}
                         </div>
                       </div>
                       <div className="bg-gray-50 p-3 rounded-xl">

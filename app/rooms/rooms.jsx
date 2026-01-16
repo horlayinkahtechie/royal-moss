@@ -209,7 +209,7 @@ const Rooms = () => {
       const { data: roomsData, error: fetchError } = await supabase
         .from("rooms")
         .select(
-          "room_category, price_per_night, discounted_price_per_night, amenities, no_of_guest, room_dimension, user_ratings, room_image, room_description, room_availability, room_number"
+          "room_category, price_per_night, discounted_price_per_night, amenities, no_of_guest,  user_ratings, room_image, room_description, room_availability, room_number"
         )
         .eq("room_availability", true)
         .order("price_per_night", { ascending: true });
@@ -287,7 +287,6 @@ const Rooms = () => {
             avgRating: room.user_ratings || 4.5,
             maxGuests: room.no_of_guest,
             minGuests: room.no_of_guest,
-            size: room.room_dimension,
             images: images,
             amenities: amenities.slice(0, 6),
             availableRooms: availableRooms,
@@ -669,10 +668,6 @@ const Rooms = () => {
                     <div className="flex items-center">
                       <Users className="w-4 h-4 mr-1 text-sky-600" />
                       <span>{category.guestsDisplay}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Maximize2 className="w-4 h-4 mr-1 text-purple-600" />
-                      <span>{category.size}</span>
                     </div>
                   </div>
 

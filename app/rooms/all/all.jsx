@@ -245,7 +245,6 @@ export default function AllRooms() {
           discountedPrice: discountedPrice, // Store numeric discounted price
           rating: room.user_ratings || 4.5,
           guests: room.no_of_guest,
-          size: room.room_dismesion,
           amenities: Array.isArray(room.amenities)
             ? room.amenities
             : room.amenities
@@ -844,10 +843,6 @@ export default function AllRooms() {
                             <Users className="w-4 h-4 mr-1 text-sky-500" />
                             {room.guests}
                           </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Maximize2 className="w-4 h-4 mr-1 text-purple-500" />
-                            {room.size}
-                          </div>
                         </div>
                       </div>
 
@@ -1021,15 +1016,6 @@ export default function AllRooms() {
                           </div>
                           <div className="text-lg font-bold text-gray-900">
                             {selectedRoom.guests}
-                          </div>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg">
-                          <div className="flex items-center text-gray-700 mb-1">
-                            <Maximize2 className="w-4 h-4 mr-2 text-purple-500" />
-                            <span className="text-sm font-medium">Size</span>
-                          </div>
-                          <div className="text-lg font-bold text-gray-900">
-                            {selectedRoom.size}
                           </div>
                         </div>
                         <div className="bg-white p-3 rounded-lg">

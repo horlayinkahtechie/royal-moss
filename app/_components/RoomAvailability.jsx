@@ -347,9 +347,7 @@ const RoomAvailability = () => {
     if (room.room_description) {
       queryParams.set("description", room.room_description);
     }
-    if (room.room_dismesion) {
-      queryParams.set("size", room.room_dismesion);
-    }
+
     if (room.no_of_guest) {
       queryParams.set("maxGuests", room.no_of_guest);
     }
@@ -610,11 +608,6 @@ const RoomAvailability = () => {
                                   Up to {room.no_of_guest} Guests
                                 </span>
                               </div>
-                              <div className="flex items-center bg-gray-100 text-gray-700 px-2 py-1 rounded-lg">
-                                <span className="text-sm">
-                                  {room.room_dismesion}
-                                </span>
-                              </div>
                             </div>
                           </div>
                           <div className="flex items-center px-3 py-1 rounded-lg text-sm font-bold bg-emerald-100 text-emerald-700">
@@ -736,7 +729,6 @@ const RoomAvailability = () => {
                         </div>
                         <div className="text-sm text-gray-500">
                           <p>Max Guests: {room.no_of_guest}</p>
-                          <p>Room Size: {room.room_dismesion}</p>
                         </div>
                       </div>
                     ))}

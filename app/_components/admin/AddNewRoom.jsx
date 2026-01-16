@@ -173,7 +173,6 @@ export default function AddRoomPage() {
     price_per_night: "",
     discounted_price_per_night: "",
     no_of_guest: 2,
-    room_dimension: "",
     user_ratings: 0,
     room_description: "",
     room_availability: true,
@@ -447,7 +446,6 @@ export default function AddRoomPage() {
           ? parseFloat(formData.discounted_price_per_night)
           : null,
         no_of_guest: parseInt(formData.no_of_guest),
-        room_dimension: formData.room_dimension || null,
         user_ratings: 4.3, // Start with 0 ratings
         room_image: imageUrls, // Array of image URLs
         room_description: formData.room_description || null,
@@ -475,7 +473,6 @@ export default function AddRoomPage() {
         price_per_night: "",
         discounted_price_per_night: "",
         no_of_guest: 2,
-        room_dimension: "",
         user_ratings: 0,
         room_description: "",
         room_availability: true,
@@ -859,24 +856,6 @@ export default function AddRoomPage() {
                           min="1"
                           max="10"
                           required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Room Dimension */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Room Dimension
-                      </label>
-                      <div className="relative">
-                        <Ruler className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                          type="text"
-                          name="room_dimension"
-                          value={formData.room_dimension}
-                          onChange={handleInputChange}
-                          className="w-full pl-12 pr-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white"
-                          placeholder="e.g., 30 m², 350 sq ft"
                         />
                       </div>
                     </div>

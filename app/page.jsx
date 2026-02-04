@@ -6,7 +6,7 @@ export const metadata = {
     "Royal Moss Hotel is a premium hotel in Badagry, Lagos, Nigeria. Book luxury rooms, enjoy modern amenities, secure online payments, and a comfortable stay.",
   keywords: [
     "Royal Moss Hotel",
-    "Hotel in Badagry",
+    "Hotels in Badagry",
     "Hotels in Lagos",
     "Luxury hotel in Badagry",
     "Book hotel in Lagos",
@@ -14,6 +14,9 @@ export const metadata = {
     "Royal Moss Badagry",
     "Hotels in Badagry",
     "Lagos Beach",
+    "Badagry Hotels",
+    "Luxury Hotel in Lagos",
+    "Hotel beside a beach in Lagos"
   ],
   openGraph: {
     title: "Royal Moss Hotel | Book Luxury Rooms in Badagry",

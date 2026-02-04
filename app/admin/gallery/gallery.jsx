@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Filter,
@@ -61,26 +61,10 @@ export default function GalleryPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Form states
-  const [newGallery, setNewGallery] = useState({
-    title: "",
-    caption: "",
-    category: "interior",
-    status: "active",
-    image_url: [""],
-  });
+  // Form states - REMOVED: These should be managed inside the modal
   const [selectedGallery, setSelectedGallery] = useState(null);
   const [editGallery, setEditGallery] = useState(null);
   const [galleryToDelete, setGalleryToDelete] = useState(null);
-
-  // File upload states
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-
-  // Upload type states
-  const [uploadType, setUploadType] = useState("url"); // "url" or "file"
-  const [imageFiles, setImageFiles] = useState([]);
 
   // Real-time subscription state
   const [subscription, setSubscription] = useState(null);
@@ -94,8 +78,13 @@ export default function GalleryPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
 
+  // Refs
+  const galleriesRef = useRef([]);
+  const shouldUpdateRef = useRef(true);
+
+  // Initialize and fetch data
   useEffect(() => {
-    const checkAdminRole = async () => {
+    const initialize = async () => {
       const {
         data: { user },
         error: authError,
@@ -118,13 +107,12 @@ export default function GalleryPage() {
       }
 
       setLoading(false);
-      fetchGalleries();
+      await fetchGalleries();
       setupRealtimeSubscription();
     };
 
-    checkAdminRole();
+    initialize();
 
-    // Cleanup subscription on unmount
     return () => {
       if (subscription) {
         supabase.removeChannel(subscription);
@@ -139,172 +127,143 @@ export default function GalleryPage() {
       .on(
         "postgres_changes",
         {
-          event: "*", // Listen to all events: INSERT, UPDATE, DELETE
+          event: "*",
           schema: "public",
           table: "gallery",
         },
         (payload) => {
-          console.log("Real-time update received:", payload);
-          handleRealtimeUpdate(payload);
-        }
+          if (shouldUpdateRef.current) {
+            handleRealtimeUpdate(payload);
+          }
+        },
       )
       .subscribe((status) => {
         console.log("Realtime subscription status:", status);
-        if (status === "SUBSCRIBED") {
-          console.log("✅ Successfully subscribed to gallery changes");
-        }
       });
 
     setSubscription(channel);
   };
 
   // Handle real-time updates
-  const handleRealtimeUpdate = (payload) => {
+  const handleRealtimeUpdate = useCallback((payload) => {
     setIsSyncing(true);
 
-    switch (payload.eventType) {
-      case "INSERT":
-        console.log("New gallery added:", payload.new);
-        handleNewGallery(payload.new);
-        break;
-      case "UPDATE":
-        console.log("Gallery updated:", payload.new);
-        handleUpdatedGallery(payload.new);
-        break;
-      case "DELETE":
-        console.log("Gallery deleted:", payload.old);
-        handleDeletedGallery(payload.old.id);
-        break;
-    }
+    setTimeout(() => {
+      switch (payload.eventType) {
+        case "INSERT":
+          handleNewGallery(payload.new);
+          break;
+        case "UPDATE":
+          handleUpdatedGallery(payload.new);
+          break;
+        case "DELETE":
+          handleDeletedGallery(payload.old.id);
+          break;
+      }
 
-    setLastUpdate(new Date());
-
-    // Hide syncing indicator after a short delay
-    setTimeout(() => setIsSyncing(false), 500);
-  };
+      setLastUpdate(new Date());
+      setIsSyncing(false);
+    }, 100);
+  }, []);
 
   // Handle new gallery insertion
-  const handleNewGallery = (newGalleryData) => {
-    // Process image_urls to ensure it's always an array
+  const handleNewGallery = useCallback((newGalleryData) => {
     const processedGallery = {
       ...newGalleryData,
       image_url: Array.isArray(newGalleryData.image_url)
         ? newGalleryData.image_url
         : newGalleryData.image_url
-        ? [newGalleryData.image_url]
-        : [],
+          ? [newGalleryData.image_url]
+          : [],
     };
 
-    // Check if gallery already exists (to prevent duplicates)
-    const exists = galleries.some(
-      (gallery) => gallery.id === processedGallery.id
-    );
-    if (!exists) {
-      setGalleries((prev) => {
+    setGalleries((prev) => {
+      const exists = prev.some((gallery) => gallery.id === processedGallery.id);
+      if (!exists) {
         const newGalleries = [processedGallery, ...prev];
         applyFiltersAndSearch(newGalleries);
+        galleriesRef.current = newGalleries;
+        setTotalItems((prevTotal) => prevTotal + 1);
         return newGalleries;
-      });
-      setTotalItems((prev) => prev + 1);
-    }
-  };
+      }
+      return prev;
+    });
+  }, []);
 
   // Handle gallery update
-  const handleUpdatedGallery = (updatedGalleryData) => {
-    // Process image_urls
+  const handleUpdatedGallery = useCallback((updatedGalleryData) => {
     const processedGallery = {
       ...updatedGalleryData,
       image_url: Array.isArray(updatedGalleryData.image_url)
         ? updatedGalleryData.image_url
         : updatedGalleryData.image_url
-        ? [updatedGalleryData.image_url]
-        : [],
+          ? [updatedGalleryData.image_url]
+          : [],
     };
 
     setGalleries((prev) => {
       const newGalleries = prev.map((gallery) =>
-        gallery.id === processedGallery.id ? processedGallery : gallery
+        gallery.id === processedGallery.id ? processedGallery : gallery,
       );
       applyFiltersAndSearch(newGalleries);
-
-      // Update selected gallery if it's currently being viewed/edited
-      if (selectedGallery && selectedGallery.id === processedGallery.id) {
-        setSelectedGallery(processedGallery);
-      }
-      if (editGallery && editGallery.id === processedGallery.id) {
-        setEditGallery(processedGallery);
-      }
-
+      galleriesRef.current = newGalleries;
       return newGalleries;
     });
-  };
+  }, []);
 
   // Handle gallery deletion
-  const handleDeletedGallery = (deletedId) => {
+  const handleDeletedGallery = useCallback((deletedId) => {
     setGalleries((prev) => {
       const newGalleries = prev.filter((gallery) => gallery.id !== deletedId);
       applyFiltersAndSearch(newGalleries);
+      galleriesRef.current = newGalleries;
+      setTotalItems((prevTotal) => prevTotal - 1);
       return newGalleries;
     });
-    setTotalItems((prev) => prev - 1);
-
-    // Close modals if they're showing the deleted gallery
-    if (selectedGallery && selectedGallery.id === deletedId) {
-      setShowViewModal(false);
-      setSelectedGallery(null);
-    }
-    if (editGallery && editGallery.id === deletedId) {
-      setShowEditModal(false);
-      setEditGallery(null);
-    }
-    if (galleryToDelete && galleryToDelete.id === deletedId) {
-      setShowDeleteModal(false);
-      setGalleryToDelete(null);
-    }
-  };
+  }, []);
 
   // Apply filters and search to galleries
-  const applyFiltersAndSearch = (galleryList) => {
-    let filtered = [...galleryList];
+  const applyFiltersAndSearch = useCallback(
+    (galleryList) => {
+      let filtered = [...galleryList];
 
-    // Apply category filter
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter(
-        (gallery) => gallery.category === selectedCategory
-      );
-    }
+      if (selectedCategory !== "all") {
+        filtered = filtered.filter(
+          (gallery) => gallery.category === selectedCategory,
+        );
+      }
 
-    // Apply status filter
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter(
-        (gallery) => gallery.status === selectedStatus
-      );
-    }
+      if (selectedStatus !== "all") {
+        filtered = filtered.filter(
+          (gallery) => gallery.status === selectedStatus,
+        );
+      }
 
-    // Apply search
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (gallery) =>
-          gallery.title.toLowerCase().includes(query) ||
-          (gallery.caption && gallery.caption.toLowerCase().includes(query))
-      );
-    }
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (gallery) =>
+            gallery.title.toLowerCase().includes(query) ||
+            (gallery.caption && gallery.caption.toLowerCase().includes(query)),
+        );
+      }
 
-    setFilteredGalleries(filtered);
-  };
+      setFilteredGalleries(filtered);
+    },
+    [selectedCategory, selectedStatus, searchQuery],
+  );
 
-  // Fetch galleries from Supabase (initial load only)
-  const fetchGalleries = async () => {
+  // Fetch galleries from Supabase
+  const fetchGalleries = useCallback(async () => {
     try {
       setLoading(true);
+      shouldUpdateRef.current = false;
 
       let query = supabase
         .from("gallery")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
-      // Apply filters
       if (selectedCategory !== "all") {
         query = query.eq("category", selectedCategory);
       }
@@ -313,18 +272,15 @@ export default function GalleryPage() {
         query = query.eq("status", selectedStatus);
       }
 
-      // Apply search
       if (searchQuery) {
         query = query.or(
-          `title.ilike.%${searchQuery}%,caption.ilike.%${searchQuery}%`
+          `title.ilike.%${searchQuery}%,caption.ilike.%${searchQuery}%`,
         );
       }
 
-      // Get total count for pagination
       const { count } = await query;
       setTotalItems(count || 0);
 
-      // Apply pagination
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       query = query.range(from, to);
@@ -333,216 +289,128 @@ export default function GalleryPage() {
 
       if (error) throw error;
 
-      // Process image_urls to ensure it's always an array
       const processedGalleries = data.map((gallery) => ({
         ...gallery,
         image_url: Array.isArray(gallery.image_url)
           ? gallery.image_url
           : gallery.image_url
-          ? [gallery.image_url]
-          : [],
+            ? [gallery.image_url]
+            : [],
       }));
 
       setGalleries(processedGalleries);
-      setFilteredGalleries(processedGalleries);
+      galleriesRef.current = processedGalleries;
+      applyFiltersAndSearch(processedGalleries);
       setLastUpdate(new Date());
     } catch (error) {
       console.error("Error fetching galleries:", error);
     } finally {
       setLoading(false);
+      setTimeout(() => {
+        shouldUpdateRef.current = true;
+      }, 500);
     }
-  };
+  }, [
+    selectedCategory,
+    selectedStatus,
+    searchQuery,
+    currentPage,
+    itemsPerPage,
+    applyFiltersAndSearch,
+  ]);
 
-  // Handle filter changes with real-time updates
+  // Handle filter changes
   useEffect(() => {
     applyFiltersAndSearch(galleries);
-  }, [selectedCategory, selectedStatus, searchQuery, galleries]);
+  }, [
+    selectedCategory,
+    selectedStatus,
+    searchQuery,
+    galleries,
+    applyFiltersAndSearch,
+  ]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, selectedStatus, searchQuery]);
 
-  // Handle file upload to Supabase Storage
-  const handleFileUpload = async (files) => {
-    if (!files || files.length === 0) return [];
+  // ========== IMAGE UPLOAD FUNCTIONS ==========
 
-    setUploading(true);
+  // Upload images to Supabase Storage
+  const uploadImagesToStorage = async (images) => {
+    if (!images || images.length === 0) return [];
+
     const uploadedUrls = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-
-      // Validate file type
-      const validTypes = [
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-        "image/gif",
-      ];
-      if (!validTypes.includes(file.type)) {
-        alert(
-          `File ${file.name} is not a valid image type. Please upload JPG, PNG, or WebP files.`
-        );
-        continue;
-      }
-
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
-        alert(`File ${file.name} is too large. Maximum size is 5MB.`);
-        continue;
-      }
-
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()
+    for (let i = 0; i < images.length; i++) {
+      const file = images[i];
+      const fileName = `${Date.now()}-${Math.random()
         .toString(36)
-        .substring(2)}_${Date.now()}.${fileExt}`;
-      const filePath = `gallery/${fileName}`;
+        .substring(7)}-${file.name.replace(/\s+/g, "-")}`;
 
       try {
-        const { error: uploadError } = await supabase.storage
-          .from("gallery-images")
-          .upload(filePath, file);
+        // Use room-images bucket
+        const { error } = await supabase.storage
+          .from("room-images")
+          .upload(`gallery/${fileName}`, file);
 
-        if (uploadError) throw uploadError;
+        if (error) throw error;
 
         // Get public URL
         const {
           data: { publicUrl },
-        } = supabase.storage.from("gallery-images").getPublicUrl(filePath);
+        } = supabase.storage
+          .from("room-images")
+          .getPublicUrl(`gallery/${fileName}`);
 
         uploadedUrls.push(publicUrl);
-        setUploadProgress(((i + 1) / files.length) * 100);
       } catch (error) {
-        console.error("Error uploading file:", error);
-        alert(`Failed to upload ${file.name}: ${error.message}`);
+        console.error("Error uploading image:", error);
+        throw new Error(`Failed to upload image ${file.name}`);
       }
     }
 
-    setUploading(false);
-    setUploadProgress(0);
     return uploadedUrls;
   };
 
-  // Handle file selection for upload
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    setImageFiles(files);
-  };
-
-  // Add new gallery
-  const handleAddGallery = async () => {
+  // Handle gallery submission
+  const handleAddGallerySubmit = async (galleryData) => {
     try {
-      if (!newGallery.title.trim()) {
-        alert("Title is required");
-        return;
-      }
-
-      let imageUrls = [];
-
-      // Handle URL uploads
-      if (uploadType === "url") {
-        // Filter out empty image URLs
-        const filteredImageUrls = newGallery.image_url.filter(
-          (url) => url.trim() !== ""
-        );
-
-        if (filteredImageUrls.length === 0) {
-          alert("Please add at least one valid image URL");
-          return;
-        }
-
-        // Validate URLs
-        const validUrls = filteredImageUrls.filter((url) => {
-          try {
-            new URL(url);
-            return true;
-          } catch {
-            return false;
-          }
-        });
-
-        if (validUrls.length === 0) {
-          alert("Please enter valid image URLs");
-          return;
-        }
-
-        imageUrls = filteredImageUrls;
-      }
-      // Handle file uploads
-      else if (uploadType === "file") {
-        if (imageFiles.length === 0) {
-          alert("Please select at least one image file to upload");
-          return;
-        }
-
-        setUploading(true);
-        const uploadedUrls = await handleFileUpload(imageFiles);
-
-        if (uploadedUrls.length === 0) {
-          alert("No images were successfully uploaded");
-          setUploading(false);
-          return;
-        }
-
-        imageUrls = uploadedUrls;
-      }
-
-      const galleryData = {
-        title: newGallery.title.trim(),
-        caption: newGallery.caption.trim(),
-        category: newGallery.category,
-        status: newGallery.status,
-        image_url: imageUrls,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
+      shouldUpdateRef.current = false;
       const { error } = await supabase.from("gallery").insert([galleryData]);
 
       if (error) throw error;
 
-      // Don't manually update state - real-time will handle it
       alert("Gallery added successfully!");
       setShowAddModal(false);
-      resetNewGalleryForm();
+
+      setTimeout(() => {
+        fetchGalleries();
+        shouldUpdateRef.current = true;
+      }, 1000);
     } catch (error) {
       console.error("Error adding gallery:", error);
-      alert("Failed to add gallery: " + error.message);
-    } finally {
-      setUploading(false);
+      alert(`Failed to add gallery: ${error.message}`);
+      shouldUpdateRef.current = true;
     }
   };
 
   // Update gallery
-  const handleUpdateGallery = async () => {
+  const handleUpdateGallerySubmit = async (galleryData) => {
     try {
-      if (!editGallery.title.trim()) {
-        alert("Title is required");
-        return;
-      }
-
-      // Filter out empty image URLs
-      const filteredImageUrls = editGallery.image_url.filter(
-        (url) => url.trim() !== ""
-      );
-
-      if (filteredImageUrls.length === 0) {
-        alert("Please add at least one valid image URL");
-        return;
-      }
+      if (!editGallery) return;
 
       const updateData = {
-        title: editGallery.title.trim(),
-        caption: editGallery.caption.trim(),
-        category: editGallery.category,
-        status: editGallery.status,
-        image_url: filteredImageUrls,
+        title: galleryData.title.trim(),
+        caption: galleryData.caption.trim(),
+        category: galleryData.category,
+        status: galleryData.status,
+        image_url: galleryData.image_url,
         updated_at: new Date().toISOString(),
       };
 
+      shouldUpdateRef.current = false;
       const { error } = await supabase
         .from("gallery")
         .update(updateData)
@@ -550,18 +418,26 @@ export default function GalleryPage() {
 
       if (error) throw error;
 
-      // Don't manually update state - real-time will handle it
       alert("Gallery updated successfully!");
       setShowEditModal(false);
+
+      setTimeout(() => {
+        fetchGalleries();
+        shouldUpdateRef.current = true;
+      }, 1000);
     } catch (error) {
       console.error("Error updating gallery:", error);
-      alert("Failed to update gallery: " + error.message);
+      alert(`Failed to update gallery: ${error.message}`);
+      shouldUpdateRef.current = true;
     }
   };
 
   // Delete gallery
   const handleDeleteGallery = async () => {
     try {
+      if (!galleryToDelete) return;
+
+      shouldUpdateRef.current = false;
       const { error } = await supabase
         .from("gallery")
         .delete()
@@ -569,74 +445,38 @@ export default function GalleryPage() {
 
       if (error) throw error;
 
-      // Don't manually update state - real-time will handle it
       alert("Gallery deleted successfully!");
       setShowDeleteModal(false);
       setGalleryToDelete(null);
+
+      setTimeout(() => {
+        fetchGalleries();
+        shouldUpdateRef.current = true;
+      }, 1000);
     } catch (error) {
       console.error("Error deleting gallery:", error);
-      alert("Failed to delete gallery: " + error.message);
+      alert(`Failed to delete gallery: ${error.message}`);
+      shouldUpdateRef.current = true;
     }
   };
 
-  // Reset new gallery form
-  const resetNewGalleryForm = () => {
-    setNewGallery({
-      title: "",
-      caption: "",
-      category: "interior",
-      status: "active",
-      image_url: [""],
-    });
-    setUploadedFiles([]);
-    setImageFiles([]);
-    setUploadType("url");
-  };
-
-  // Add new image URL field
-  const addImageUrlField = () => {
-    setNewGallery({
-      ...newGallery,
-      image_url: [...newGallery.image_url, ""],
-    });
-  };
-
-  // Remove image URL field
-  const removeImageUrlField = (index) => {
-    const newImageUrls = newGallery.image_url.filter((_, i) => i !== index);
-    setNewGallery({
-      ...newGallery,
-      image_url: newImageUrls,
-    });
-  };
-
-  // Update image URL
-  const updateImageUrl = (index, value) => {
-    const newImageUrls = [...newGallery.image_url];
-    newImageUrls[index] = value;
-    setNewGallery({
-      ...newGallery,
-      image_url: newImageUrls,
-    });
-  };
-
   // Format date
-  const formatDate = (dateString) => {
+  const formatDate = useCallback((dateString) => {
     try {
       return format(new Date(dateString), "MMM dd, yyyy");
     } catch {
       return "N/A";
     }
-  };
+  }, []);
 
   // Format time for last update
-  const formatTime = (date) => {
+  const formatTime = useCallback((date) => {
     if (!date) return "Never";
     return format(date, "HH:mm:ss");
-  };
+  }, []);
 
   // Status Badge Component
-  const StatusBadge = ({ status }) => {
+  const StatusBadge = useCallback(({ status }) => {
     return (
       <div
         className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -648,10 +488,10 @@ export default function GalleryPage() {
         {status === "active" ? "Active" : "Inactive"}
       </div>
     );
-  };
+  }, []);
 
   // Category Badge Component
-  const CategoryBadge = ({ category }) => {
+  const CategoryBadge = useCallback(({ category }) => {
     const getCategoryColor = (cat) => {
       const colors = {
         interior:
@@ -680,16 +520,16 @@ export default function GalleryPage() {
     return (
       <div
         className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(
-          category
+          category,
         )}`}
       >
         {category.charAt(0).toUpperCase() + category.slice(1)}
       </div>
     );
-  };
+  }, []);
 
   // Gallery Card Component
-  const GalleryCard = ({ gallery }) => {
+  const GalleryCard = useCallback(({ gallery }) => {
     const mainImage = gallery.image_url?.[0] || "";
 
     return (
@@ -705,7 +545,7 @@ export default function GalleryPage() {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-lineart-to-br from-gray-800 to-gray-900">
+            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-gray-800 to-gray-900">
               <ImageIcon className="w-12 h-12 text-gray-600" />
             </div>
           )}
@@ -781,10 +621,10 @@ export default function GalleryPage() {
         </div>
       </div>
     );
-  };
+  }, []);
 
   // Gallery List Item Component
-  const GalleryListItem = ({ gallery }) => {
+  const GalleryListItem = useCallback(({ gallery }) => {
     const mainImage = gallery.image_url?.[0] || "";
 
     return (
@@ -867,336 +707,217 @@ export default function GalleryPage() {
         </div>
       </div>
     );
-  };
+  }, []);
 
-  // Add Gallery Modal
-  const AddGalleryModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white">Add New Gallery</h2>
-              <p className="text-gray-400">
-                Upload images and add gallery details
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setShowAddModal(false);
-                resetNewGalleryForm();
-              }}
-              className="p-2 hover:bg-gray-700/50 cursor-pointer rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6 text-gray-400" />
-            </button>
-          </div>
+  // ========== ADD GALLERY MODAL - COMPLETELY FIXED ==========
+  const AddGalleryModal = () => {
+    const [formData, setFormData] = useState({
+      title: "",
+      caption: "",
+      category: "interior",
+      status: "active",
+    });
+    const [uploadType, setUploadType] = useState("file");
+    const [images, setImages] = useState([]);
+    const [imagePreviews, setImagePreviews] = useState([]);
+    const [imageUrls, setImageUrls] = useState([""]);
+    const [uploadingImages, setUploadingImages] = useState(false);
+    const [errors, setErrors] = useState({});
 
-          <div className="space-y-6">
-            {/* Title and Caption */}
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Title *
-                </label>
-                <input
-                  type="text"
-                  value={newGallery.title}
-                  onChange={(e) =>
-                    setNewGallery({ ...newGallery, title: e.target.value })
-                  }
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Enter gallery title"
-                />
-              </div>
+    // Handle image upload
+    const handleImageUpload = async (e) => {
+      const files = Array.from(e.target.files);
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Caption
-                </label>
-                <textarea
-                  value={newGallery.caption}
-                  onChange={(e) =>
-                    setNewGallery({ ...newGallery, caption: e.target.value })
-                  }
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Enter gallery caption (optional)"
-                  rows="3"
-                />
-              </div>
-            </div>
+      // Check total images (max 10 for gallery)
+      if (images.length + files.length > 10) {
+        alert("Maximum 10 images allowed per gallery");
+        return;
+      }
 
-            {/* Category and Status */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Category *
-                </label>
-                <select
-                  value={newGallery.category}
-                  onChange={(e) =>
-                    setNewGallery({ ...newGallery, category: e.target.value })
-                  }
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      // Validate file types and sizes
+      const validFiles = files.filter((file) => {
+        const isValidType = [
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+        ].includes(file.type);
+        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB max
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Status *
-                </label>
-                <select
-                  value={newGallery.status}
-                  onChange={(e) =>
-                    setNewGallery({ ...newGallery, status: e.target.value })
-                  }
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
+        if (!isValidType)
+          alert(
+            `${file.name} is not a valid image type (JPEG, PNG, WebP, GIF only)`,
+          );
+        if (!isValidSize) alert(`${file.name} is too large (max 5MB)`);
 
-            {/* Upload Type Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-4">
-                Add Images *
-              </label>
+        return isValidType && isValidSize;
+      });
 
-              {/* Upload Type Tabs */}
-              <div className="flex gap-4 mb-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadType("url");
-                    setImageFiles([]);
-                  }}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 flex-1 ${
-                    uploadType === "url"
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-900/50 text-gray-400 hover:bg-gray-700/50"
-                  } cursor-pointer`}
-                >
-                  <Link className="w-5 h-5" />
-                  <span>Image URL</span>
-                </button>
+      if (validFiles.length === 0) return;
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadType("file");
-                    setNewGallery({ ...newGallery, image_url: [""] });
-                  }}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 flex-1 ${
-                    uploadType === "file"
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-900/50 text-gray-400 hover:bg-gray-700/50"
-                  } cursor-pointer`}
-                >
-                  <Upload className="w-5 h-5" />
-                  <span>Upload File</span>
-                </button>
-              </div>
+      setUploadingImages(true);
 
-              {/* URL Upload Section */}
-              {uploadType === "url" && (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="block text-sm font-medium text-gray-300">
-                      Image URLs *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addImageUrlField}
-                      className="text-sm text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add URL
-                    </button>
-                  </div>
+      try {
+        // Create previews
+        const newPreviews = await Promise.all(
+          validFiles.map((file) => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) =>
+                resolve({
+                  file,
+                  preview: e.target.result,
+                  name: file.name,
+                });
+              reader.readAsDataURL(file);
+            });
+          }),
+        );
 
-                  <div className="space-y-3">
-                    {newGallery.image_url.map((url, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            value={url}
-                            onChange={(e) =>
-                              updateImageUrl(index, e.target.value)
-                            }
-                            className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="https://example.com/image.jpg"
-                          />
-                        </div>
-                        {newGallery.image_url.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeImageUrlField(index)}
-                            className="p-2 text-red-400 hover:text-red-300 cursor-pointer"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+        setImagePreviews((prev) => [...prev, ...newPreviews]);
+        setImages((prev) => [...prev, ...validFiles]);
+      } catch (error) {
+        console.error("Error creating image previews:", error);
+        alert("Failed to process images");
+      } finally {
+        setUploadingImages(false);
+      }
+    };
 
-                  <p className="text-xs text-gray-400 mt-2">
-                    Add image URLs (JPG, PNG, or WebP formats recommended)
-                  </p>
-                </div>
-              )}
+    // Remove image
+    const handleRemoveImage = (index) => {
+      setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+      setImages((prev) => prev.filter((_, i) => i !== index));
+    };
 
-              {/* File Upload Section */}
-              {uploadType === "file" && (
-                <div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Upload Images *
-                    </label>
-                    <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-purple-500 transition-colors">
-                      <input
-                        type="file"
-                        id="file-upload"
-                        multiple
-                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="file-upload"
-                        className="cursor-pointer flex flex-col items-center justify-center"
-                      >
-                        <Upload className="w-12 h-12 text-gray-500 mb-4" />
-                        <p className="text-gray-300 mb-2">
-                          Drag & drop images here or click to browse
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          JPG, PNG, WebP, GIF • Max 5MB per image
-                        </p>
-                      </label>
-                    </div>
-                  </div>
+    // Handle URL changes
+    const handleUrlChange = (index, value) => {
+      const newUrls = [...imageUrls];
+      newUrls[index] = value;
+      setImageUrls(newUrls);
+    };
 
-                  {/* Selected Files Preview */}
-                  {imageFiles.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="text-sm font-medium text-gray-300 mb-3">
-                        Selected Files ({imageFiles.length})
-                      </h4>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {imageFiles.map((file, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between bg-gray-900/30 p-3 rounded-lg"
-                          >
-                            <div className="flex items-center gap-3">
-                              <ImageIcon className="w-5 h-5 text-gray-400" />
-                              <span className="text-gray-300 text-sm truncate">
-                                {file.name}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newFiles = [...imageFiles];
-                                newFiles.splice(index, 1);
-                                setImageFiles(newFiles);
-                              }}
-                              className="text-red-400 hover:text-red-300 cursor-pointer"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+    const handleAddUrl = () => {
+      setImageUrls([...imageUrls, ""]);
+    };
 
-            {/* Upload Progress */}
-            {uploading && (
-              <div className="space-y-2">
-                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-sky-500 transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-                <p className="text-sm text-gray-400 text-center">
-                  Uploading images... {uploadProgress.toFixed(0)}%
-                </p>
-              </div>
-            )}
+    const handleRemoveUrl = (index) => {
+      setImageUrls(imageUrls.filter((_, i) => i !== index));
+    };
 
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-gray-700">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetNewGalleryForm();
-                }}
-                className="px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddGallery}
-                disabled={
-                  !newGallery.title.trim() ||
-                  (uploadType === "url" &&
-                    newGallery.image_url.some((url) => !url.trim())) ||
-                  (uploadType === "file" && imageFiles.length === 0) ||
-                  uploading
-                }
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {uploading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    Add Gallery
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    // Validate form
+    const validateForm = () => {
+      const newErrors = {};
 
-  // View Gallery Modal
-  const ViewGalleryModal = () => {
-    if (!selectedGallery) return null;
+      if (!formData.title.trim()) {
+        newErrors.title = "Title is required";
+      }
+
+      if (uploadType === "url") {
+        const filteredUrls = imageUrls.filter((url) => url.trim() !== "");
+        if (filteredUrls.length === 0) {
+          newErrors.urls = "Please add at least one valid image URL";
+        } else {
+          const invalidUrls = filteredUrls.filter((url) => {
+            try {
+              new URL(url);
+              return false;
+            } catch {
+              return true;
+            }
+          });
+
+          if (invalidUrls.length > 0) {
+            newErrors.urls =
+              "Please enter valid image URLs (must start with http:// or https://)";
+          }
+        }
+      } else {
+        if (images.length === 0) {
+          newErrors.images = "Please upload at least one image";
+        }
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    // Handle form submission
+    const handleSubmit = async () => {
+      if (!validateForm()) {
+        return;
+      }
+
+      setUploadingImages(true);
+
+      try {
+        let finalImageUrls = [];
+
+        if (uploadType === "url") {
+          finalImageUrls = imageUrls.filter((url) => url.trim() !== "");
+        } else {
+          finalImageUrls = await uploadImagesToStorage(images);
+          if (finalImageUrls.length === 0) {
+            alert("No images were successfully uploaded");
+            return;
+          }
+        }
+
+        const galleryData = {
+          title: formData.title.trim(),
+          caption: formData.caption.trim(),
+          category: formData.category,
+          status: formData.status,
+          image_url: finalImageUrls,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        await handleAddGallerySubmit(galleryData);
+        setShowAddModal(false);
+        resetForm();
+      } catch (error) {
+        console.error("Error submitting gallery:", error);
+        alert(`Failed to add gallery: ${error.message}`);
+      } finally {
+        setUploadingImages(false);
+      }
+    };
+
+    // Reset form
+    const resetForm = () => {
+      setFormData({
+        title: "",
+        caption: "",
+        category: "interior",
+        status: "active",
+      });
+      setImages([]);
+      setImagePreviews([]);
+      setImageUrls([""]);
+      setUploadType("file");
+      setErrors({});
+    };
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">
-                {selectedGallery.title}
-              </h2>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Add New Gallery
+                </h2>
+                <p className="text-gray-400">
+                  Upload images and add gallery details
+                </p>
+              </div>
               <button
-                onClick={() => setShowViewModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetForm();
+                }}
                 className="p-2 hover:bg-gray-700/50 cursor-pointer rounded-lg transition-colors"
               >
                 <X className="w-6 h-6 text-gray-400" />
@@ -1204,67 +925,300 @@ export default function GalleryPage() {
             </div>
 
             <div className="space-y-6">
-              {/* Gallery Info */}
-              <div className="flex items-center gap-4">
-                <StatusBadge status={selectedGallery.status} />
-                <CategoryBadge category={selectedGallery.category} />
-                <div className="text-sm text-gray-400">
-                  Added on {formatDate(selectedGallery.created_at)}
+              {/* Title and Caption */}
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      setErrors((prev) => ({ ...prev, title: null }));
+                    }}
+                    className={`w-full px-4 py-3 bg-gray-900/50 border ${
+                      errors.title ? "border-red-500" : "border-gray-700"
+                    } rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                    placeholder="Enter gallery title"
+                  />
+                  {errors.title && (
+                    <p className="mt-1 text-sm text-red-400">{errors.title}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Caption
+                  </label>
+                  <textarea
+                    value={formData.caption}
+                    onChange={(e) =>
+                      setFormData({ ...formData, caption: e.target.value })
+                    }
+                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    placeholder="Enter gallery caption (optional)"
+                    rows="3"
+                  />
                 </div>
               </div>
 
-              {/* Caption */}
-              {selectedGallery.caption && (
-                <p className="text-gray-300">{selectedGallery.caption}</p>
-              )}
-
-              {/* Images Grid */}
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Images ({selectedGallery.image_url?.length || 0})
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {selectedGallery.image_url?.map((url, index) => (
-                    <div
-                      key={index}
-                      className="relative rounded-lg overflow-hidden bg-gray-900 aspect-square"
-                    >
-                      <Image
-                        width={100}
-                        height={100}
-                        src={url}
-                        alt={`${selectedGallery.title} - Image ${index + 1}`}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
-                        onClick={() => window.open(url, "_blank")}
-                      />
-                    </div>
-                  ))}
+              {/* Category and Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Category *
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category: e.target.value })
+                    }
+                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Status *
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Upload Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-4">
+                  Add Images *
+                </label>
+
+                {/* Upload Type Tabs */}
+                <div className="flex gap-4 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadType("file");
+                      setErrors({});
+                    }}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 flex-1 ${
+                      uploadType === "file"
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-900/50 text-gray-400 hover:bg-gray-700/50"
+                    } cursor-pointer`}
+                  >
+                    <Upload className="w-5 h-5" />
+                    <span>Upload Files</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadType("url");
+                      setErrors({});
+                    }}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-300 flex-1 ${
+                      uploadType === "url"
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-900/50 text-gray-400 hover:bg-gray-700/50"
+                    } cursor-pointer`}
+                  >
+                    <Link className="w-5 h-5" />
+                    <span>Image URLs</span>
+                  </button>
+                </div>
+
+                {/* File Upload Section */}
+                {uploadType === "file" && (
+                  <div>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Upload Images (Max 10) *
+                      </label>
+                      <div
+                        className={`border-2 border-dashed ${
+                          errors.images
+                            ? "border-red-500"
+                            : "border-gray-600 hover:border-purple-500"
+                        } rounded-xl p-8 text-center transition-colors`}
+                      >
+                        <input
+                          type="file"
+                          id="file-upload"
+                          multiple
+                          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          disabled={uploadingImages}
+                        />
+                        <label
+                          htmlFor="file-upload"
+                          className="cursor-pointer flex flex-col items-center justify-center"
+                        >
+                          {uploadingImages ? (
+                            <>
+                              <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                              <p className="text-gray-300">
+                                Processing images...
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-12 h-12 text-gray-500 mb-4" />
+                              <p className="text-gray-300 mb-2">
+                                Drag & drop images here or click to browse
+                              </p>
+                              <p className="text-sm text-gray-400">
+                                JPG, PNG, WebP, GIF • Max 5MB per image • Max 10
+                                images
+                              </p>
+                            </>
+                          )}
+                        </label>
+                      </div>
+                      {errors.images && (
+                        <p className="mt-2 text-sm text-red-400">
+                          {errors.images}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Image Previews */}
+                    {imagePreviews.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium text-gray-300 mb-3">
+                          Selected Images ({imagePreviews.length}/10)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {imagePreviews.map((preview, index) => (
+                            <div
+                              key={index}
+                              className="relative group rounded-lg overflow-hidden bg-gray-900"
+                            >
+                              <img
+                                src={preview.preview}
+                                alt={preview.name}
+                                className="w-full h-32 object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(index)}
+                                  className="p-2 bg-red-600 hover:bg-red-700 rounded-full cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4 text-white" />
+                                </button>
+                              </div>
+                              <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white">
+                                {index + 1}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* URL Upload Section */}
+                {uploadType === "url" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Image URLs *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddUrl}
+                        className="text-sm text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add URL
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {imageUrls.map((url, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={url}
+                              onChange={(e) =>
+                                handleUrlChange(index, e.target.value)
+                              }
+                              className={`w-full px-4 py-2 bg-gray-900/50 border ${
+                                errors.urls
+                                  ? "border-red-500"
+                                  : "border-gray-700"
+                              } rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                              placeholder="https://example.com/image.jpg"
+                            />
+                          </div>
+                          {imageUrls.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveUrl(index)}
+                              className="p-2 text-red-400 hover:text-red-300 cursor-pointer"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {errors.urls && (
+                      <p className="mt-2 text-sm text-red-400">{errors.urls}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-2">
+                      Add image URLs (must start with http:// or https://)
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-6 border-t border-gray-700">
+              <div className="flex justify-end gap-3 pt-6 border-t border-gray-700">
                 <button
                   onClick={() => {
-                    setShowViewModal(false);
-                    setEditGallery({ ...selectedGallery });
-                    setShowEditModal(true);
+                    setShowAddModal(false);
+                    resetForm();
                   }}
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                  className="px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors cursor-pointer"
                 >
-                  <Edit className="w-4 h-4" />
-                  Edit Gallery
+                  Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    setGalleryToDelete(selectedGallery);
-                    setShowViewModal(false);
-                    setShowDeleteModal(true);
-                  }}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                  onClick={handleSubmit}
+                  disabled={uploadingImages}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Gallery
+                  {uploadingImages ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Add Gallery
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1274,9 +1228,81 @@ export default function GalleryPage() {
     );
   };
 
-  // Edit Gallery Modal
+  // Edit Gallery Modal - FIXED with local state
   const EditGalleryModal = () => {
     if (!editGallery) return null;
+
+    const [formData, setFormData] = useState({
+      title: editGallery.title || "",
+      caption: editGallery.caption || "",
+      category: editGallery.category || "interior",
+      status: editGallery.status || "active",
+    });
+    const [imageUrls, setImageUrls] = useState(
+      Array.isArray(editGallery.image_url) ? editGallery.image_url : [""],
+    );
+    const [errors, setErrors] = useState({});
+
+    const handleUrlChange = (index, value) => {
+      const newUrls = [...imageUrls];
+      newUrls[index] = value;
+      setImageUrls(newUrls);
+    };
+
+    const handleAddUrl = () => {
+      setImageUrls([...imageUrls, ""]);
+    };
+
+    const handleRemoveUrl = (index) => {
+      setImageUrls(imageUrls.filter((_, i) => i !== index));
+    };
+
+    const validateForm = () => {
+      const newErrors = {};
+
+      if (!formData.title.trim()) {
+        newErrors.title = "Title is required";
+      }
+
+      const filteredUrls = imageUrls.filter((url) => url.trim() !== "");
+      if (filteredUrls.length === 0) {
+        newErrors.urls = "Please add at least one valid image URL";
+      } else {
+        const invalidUrls = filteredUrls.filter((url) => {
+          try {
+            new URL(url);
+            return false;
+          } catch {
+            return true;
+          }
+        });
+
+        if (invalidUrls.length > 0) {
+          newErrors.urls =
+            "Please enter valid image URLs (must start with http:// or https://)";
+        }
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    const handleUpdate = async () => {
+      if (!validateForm()) {
+        return;
+      }
+
+      const filteredUrls = imageUrls.filter((url) => url.trim() !== "");
+
+      const galleryData = {
+        ...formData,
+        title: formData.title.trim(),
+        caption: formData.caption.trim(),
+        image_url: filteredUrls,
+      };
+
+      await handleUpdateGallerySubmit(galleryData);
+    };
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -1304,12 +1330,18 @@ export default function GalleryPage() {
                   </label>
                   <input
                     type="text"
-                    value={editGallery.title}
-                    onChange={(e) =>
-                      setEditGallery({ ...editGallery, title: e.target.value })
-                    }
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    value={formData.title}
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      setErrors((prev) => ({ ...prev, title: null }));
+                    }}
+                    className={`w-full px-4 py-3 bg-gray-900/50 border ${
+                      errors.title ? "border-red-500" : "border-gray-700"
+                    } rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
                   />
+                  {errors.title && (
+                    <p className="mt-1 text-sm text-red-400">{errors.title}</p>
+                  )}
                 </div>
 
                 <div>
@@ -1317,12 +1349,9 @@ export default function GalleryPage() {
                     Caption
                   </label>
                   <textarea
-                    value={editGallery.caption}
+                    value={formData.caption}
                     onChange={(e) =>
-                      setEditGallery({
-                        ...editGallery,
-                        caption: e.target.value,
-                      })
+                      setFormData({ ...formData, caption: e.target.value })
                     }
                     className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                     rows="3"
@@ -1337,14 +1366,11 @@ export default function GalleryPage() {
                     Category *
                   </label>
                   <select
-                    value={editGallery.category}
+                    value={formData.category}
                     onChange={(e) =>
-                      setEditGallery({
-                        ...editGallery,
-                        category: e.target.value,
-                      })
+                      setFormData({ ...formData, category: e.target.value })
                     }
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
                   >
                     {categories.map((category) => (
                       <option key={category} value={category}>
@@ -1359,11 +1385,11 @@ export default function GalleryPage() {
                     Status *
                   </label>
                   <select
-                    value={editGallery.status}
+                    value={formData.status}
                     onChange={(e) =>
-                      setEditGallery({ ...editGallery, status: e.target.value })
+                      setFormData({ ...formData, status: e.target.value })
                     }
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -1371,7 +1397,7 @@ export default function GalleryPage() {
                 </div>
               </div>
 
-              {/* Image URLs (Edit modal only supports URL editing for simplicity) */}
+              {/* Image URLs */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <label className="block text-sm font-medium text-gray-300">
@@ -1379,12 +1405,7 @@ export default function GalleryPage() {
                   </label>
                   <button
                     type="button"
-                    onClick={() =>
-                      setEditGallery({
-                        ...editGallery,
-                        image_url: [...editGallery.image_url, ""],
-                      })
-                    }
+                    onClick={handleAddUrl}
                     className="text-sm text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-1"
                   >
                     <Plus className="w-4 h-4" />
@@ -1393,35 +1414,24 @@ export default function GalleryPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {editGallery.image_url?.map((url, index) => (
+                  {imageUrls.map((url, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <div className="flex-1">
                         <input
                           type="text"
                           value={url}
-                          onChange={(e) => {
-                            const newUrls = [...editGallery.image_url];
-                            newUrls[index] = e.target.value;
-                            setEditGallery({
-                              ...editGallery,
-                              image_url: newUrls,
-                            });
-                          }}
-                          className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          onChange={(e) =>
+                            handleUrlChange(index, e.target.value)
+                          }
+                          className={`w-full px-4 py-2 bg-gray-900/50 border ${
+                            errors.urls ? "border-red-500" : "border-gray-700"
+                          } rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
                         />
                       </div>
-                      {editGallery.image_url.length > 1 && (
+                      {imageUrls.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => {
-                            const newUrls = editGallery.image_url.filter(
-                              (_, i) => i !== index
-                            );
-                            setEditGallery({
-                              ...editGallery,
-                              image_url: newUrls,
-                            });
-                          }}
+                          onClick={() => handleRemoveUrl(index)}
                           className="p-2 text-red-400 hover:text-red-300 cursor-pointer"
                         >
                           <X className="w-5 h-5" />
@@ -1430,6 +1440,9 @@ export default function GalleryPage() {
                     </div>
                   ))}
                 </div>
+                {errors.urls && (
+                  <p className="mt-2 text-sm text-red-400">{errors.urls}</p>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -1441,63 +1454,13 @@ export default function GalleryPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleUpdateGallery}
-                  disabled={
-                    !editGallery.title.trim() ||
-                    editGallery.image_url.some((url) => !url.trim())
-                  }
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleUpdate}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
                 >
                   <Check className="w-4 h-4" />
                   Save Changes
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Delete Confirmation Modal
-  const DeleteConfirmationModal = () => {
-    if (!galleryToDelete) return null;
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md">
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-500" />
-              </div>
-              <h2 className="text-xl font-bold text-white">Delete Gallery</h2>
-            </div>
-
-            <p className="text-gray-300 mb-6">
-              Are you sure you want to delete the gallery{" "}
-              <span className="font-semibold text-white">
-                &quot;{galleryToDelete.title}&quot;
-              </span>
-              ? This action cannot be undone and all images will be removed.
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setGalleryToDelete(null);
-                }}
-                className="px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteGallery}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer"
-              >
-                Delete Gallery
-              </button>
             </div>
           </div>
         </div>
@@ -1580,10 +1543,128 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-900 to-black text-white">
       {/* Modals */}
       {showAddModal && <AddGalleryModal />}
-      {showViewModal && <ViewGalleryModal />}
-      {showEditModal && <EditGalleryModal />}
-      {showDeleteModal && <DeleteConfirmationModal />}
+      {showViewModal && selectedGallery && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">
+                  {selectedGallery.title}
+                </h2>
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="p-2 hover:bg-gray-700/50 cursor-pointer rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
 
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <StatusBadge status={selectedGallery.status} />
+                  <CategoryBadge category={selectedGallery.category} />
+                  <div className="text-sm text-gray-400">
+                    Added on {formatDate(selectedGallery.created_at)}
+                  </div>
+                </div>
+
+                {selectedGallery.caption && (
+                  <p className="text-gray-300">{selectedGallery.caption}</p>
+                )}
+
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-4">
+                    Images ({selectedGallery.image_url?.length || 0})
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {selectedGallery.image_url?.map((url, index) => (
+                      <div
+                        key={index}
+                        className="relative rounded-lg overflow-hidden bg-gray-900 aspect-square"
+                      >
+                        <Image
+                          width={100}
+                          height={100}
+                          src={url}
+                          alt={`${selectedGallery.title} - Image ${index + 1}`}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                          onClick={() => window.open(url, "_blank")}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-6 border-t border-gray-700">
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      setEditGallery({ ...selectedGallery });
+                      setShowEditModal(true);
+                    }}
+                    className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit Gallery
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGalleryToDelete(selectedGallery);
+                      setShowViewModal(false);
+                      setShowDeleteModal(true);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Gallery
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEditModal && <EditGalleryModal />}
+      {showDeleteModal && galleryToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Delete Gallery</h2>
+              </div>
+
+              <p className="text-gray-300 mb-6">
+                Are you sure you want to delete the gallery{" "}
+                <span className="font-semibold text-white">
+                  &quot;{galleryToDelete.title}&quot;
+                </span>
+                ? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setGalleryToDelete(null);
+                  }}
+                  className="px-4 py-2 border border-gray-600 hover:bg-gray-700/50 text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteGallery}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Delete Gallery
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Top Navigation Bar */}
       <div className="sticky top-0 z-40">
         <div className="px-6 py-4">
@@ -1711,7 +1792,7 @@ export default function GalleryPage() {
                       {galleries.reduce(
                         (total, gallery) =>
                           total + (gallery.image_url?.length || 0),
-                        0
+                        0,
                       )}
                     </p>
                   </div>

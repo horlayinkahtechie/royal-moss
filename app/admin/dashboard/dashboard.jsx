@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Calendar,
@@ -175,15 +175,10 @@ export default function BookingsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
 
-  // Real-time states
-  const [subscription, setSubscription] = useState(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  // States for manual refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [userCount, setUserCount] = useState(0);
-
-  // Refs for real-time management
-  const subscriptionRef = useRef(null);
-  const isMountedRef = useRef(true);
 
   // Format time for last update
   const formatTime = (date) => {
@@ -247,186 +242,75 @@ export default function BookingsPage() {
     [getTimePeriodRange]
   );
 
-  // Initial data fetch - simplified and optimized
-  const fetchInitialData = useCallback(async () => {
+  // Fetch all data manually
+  const fetchAllData = useCallback(async () => {
     try {
+      setIsRefreshing(true);
       setLoading(true);
-      setIsSyncing(true);
 
-      // Parallel fetching for better performance
-      const [bookingsResponse, roomsResponse, usersResponse] =
-        await Promise.all([
-          supabase
-            .from("bookings")
-            .select("*")
-            .order("check_in_date", { ascending: false }),
-          supabase.from("rooms").select("*"),
-          supabase.from("users").select("*", { count: "exact", head: true }),
-        ]);
+      // Fetch bookings with room details
+      const { data: bookings, error: bookingsError } = await supabase
+        .from("bookings")
+        .select("*")
+        .order("check_in_date", { ascending: false });
 
-      if (bookingsResponse.error) throw bookingsResponse.error;
-      if (roomsResponse.error) throw roomsResponse.error;
+      if (bookingsError) throw bookingsError;
 
-      setUserCount(usersResponse.count || 0);
-      setRooms(roomsResponse.data || []);
+      // Fetch rooms
+      const { data: roomsData, error: roomsError } = await supabase
+        .from("rooms")
+        .select("*");
 
-      // Create room map
+      if (roomsError) throw roomsError;
+
+      // Fetch user count
+      const { count: userCount, error: usersError } = await supabase
+        .from("users")
+        .select("*", { count: "exact", head: true });
+
+      if (usersError) throw usersError;
+
+      // Process rooms into a map
       const roomMap = {};
-      roomsResponse.data?.forEach((room) => {
+      roomsData?.forEach((room) => {
         roomMap[room.room_number] = room;
       });
 
       // Enrich bookings with room data
       const enrichedBookings =
-        bookingsResponse.data?.map((booking) => ({
+        bookings?.map((booking) => ({
           ...booking,
           room_details: roomMap[booking.room_number] || null,
           room_category:
             roomMap[booking.room_number]?.room_category ||
-            booking.room_category,
+            booking.room_category ||
+            "Unknown",
           total_amount_formatted: formatPriceDisplay(booking.total_amount),
         })) || [];
 
+      // Update state
       setAllBookings(enrichedBookings);
+      setRooms(roomsData || []);
+      setUserCount(userCount || 0);
       setLastUpdate(new Date());
+
+      // Generate room type options
+      const roomCategories = roomsData
+        ?.map((room) => room.room_category)
+        .filter(Boolean);
+      const uniqueRoomTypes = [...new Set(roomCategories)];
+      setRoomTypeOptions(["all", ...uniqueRoomTypes]);
+
     } catch (error) {
-      console.error("Error fetching initial data:", error);
+      console.error("Error fetching data:", error);
+      alert("Failed to load data. Please try again.");
     } finally {
       setLoading(false);
-      setIsSyncing(false);
+      setIsRefreshing(false);
     }
   }, []);
 
-  // Setup real-time subscriptions
-  const setupRealtimeSubscriptions = useCallback(() => {
-    console.log("Setting up real-time subscriptions...");
-
-    // Clean up existing subscriptions
-    if (subscriptionRef.current) {
-      console.log("Cleaning up existing subscription...");
-      supabase.removeChannel(subscriptionRef.current);
-      subscriptionRef.current = null;
-    }
-
-    // Create new channel with better configuration
-    const channel = supabase
-      .channel("admin-dashboard")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-        },
-        (payload) => {
-          console.log(
-            "Booking change detected:",
-            payload.eventType,
-            payload.new
-          );
-          if (isMountedRef.current) {
-            setIsSyncing(true);
-            setLastUpdate(new Date());
-
-            // Update based on event type
-            if (payload.eventType === "INSERT") {
-              console.log("New booking added, refreshing data...");
-              fetchInitialData();
-            } else if (payload.eventType === "UPDATE") {
-              console.log("Booking updated, refreshing data...");
-              fetchInitialData();
-            } else if (payload.eventType === "DELETE") {
-              console.log("Booking deleted, refreshing data...");
-              fetchInitialData();
-            }
-
-            // Auto-hide syncing after 2 seconds
-            setTimeout(() => {
-              if (isMountedRef.current) {
-                setIsSyncing(false);
-              }
-            }, 2000);
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "rooms",
-        },
-        (payload) => {
-          console.log("Room change detected:", payload.eventType);
-          if (isMountedRef.current) {
-            setIsSyncing(true);
-            setLastUpdate(new Date());
-
-            // Fetch updated rooms data
-            supabase
-              .from("rooms")
-              .select("*")
-              .then(({ data, error }) => {
-                if (!error && data) {
-                  setRooms(data);
-
-                  // Update room type options
-                  const roomCategories = data
-                    .map((room) => room.room_category)
-                    .filter(Boolean);
-                  const uniqueRoomTypes = [...new Set(roomCategories)];
-                  setRoomTypeOptions(["all", ...uniqueRoomTypes]);
-
-                  // Also refresh bookings to update room details
-                  fetchInitialData();
-                }
-              });
-          }
-        }
-      )
-      .on("system", { event: "connected" }, () => {
-        console.log("✅ Connected to real-time");
-        if (isMountedRef.current) {
-          setIsSyncing(false);
-        }
-      })
-      .on("system", { event: "disconnected" }, () => {
-        console.log("❌ Disconnected from real-time");
-        if (isMountedRef.current) {
-          setIsSyncing(true);
-        }
-      })
-      .on("system", { event: "reconnected" }, () => {
-        console.log("🔄 Reconnected to real-time");
-        if (isMountedRef.current) {
-          setIsSyncing(true);
-          fetchInitialData();
-        }
-      })
-      .subscribe((status) => {
-        console.log("Subscription status:", status);
-        if (status === "SUBSCRIBED") {
-          console.log("✅ Successfully subscribed to real-time updates");
-          if (isMountedRef.current) {
-            setIsSyncing(false);
-          }
-        } else if (status === "CHANNEL_ERROR") {
-          console.error("❌ Channel error");
-          // Try to reconnect after 5 seconds
-          setTimeout(() => {
-            if (isMountedRef.current) {
-              console.log("Attempting to reconnect...");
-              setupRealtimeSubscriptions();
-            }
-          }, 5000);
-        }
-      });
-
-    subscriptionRef.current = channel;
-    setSubscription(channel);
-  }, [fetchInitialData]);
-
-  // Calculate statistics - FIXED: Only count bookings with payment_status = "paid" for ALL calculations
+  // Calculate statistics - Only count paid bookings
   const calculateStats = useCallback(
     (bookings) => {
       if (!bookings || bookings.length === 0) {
@@ -452,9 +336,7 @@ export default function BookingsPage() {
       );
 
       // Calculate basic stats for PAID bookings only
-      const totalBookings = paidBookings.length; // FIXED: Now only counts paid bookings
-
-      // Calculate revenue ONLY from paid bookings
+      const totalBookings = paidBookings.length;
       const totalRevenue = paidBookings.reduce((sum, booking) => {
         const amount = parsePrice(booking.total_amount) || 0;
         return sum + amount;
@@ -515,22 +397,22 @@ export default function BookingsPage() {
       });
 
       return {
-        totalBookings, // FIXED: Shows only paid bookings count
-        activeStays, // Only paid active stays
-        totalRevenue, // Only from paid bookings
+        totalBookings,
+        activeStays,
+        totalRevenue,
         totalRevenueFormatted,
-        occupancyRate, // Based on paid active stays
+        occupancyRate,
         totalUsers: userCount,
-        averageBookingValue, // Only from paid bookings
+        averageBookingValue,
         averageBookingValueFormatted,
-        avgStayDuration: parseFloat(avgStayDuration), // Only from paid bookings
-        topRoomType, // Only from paid bookings
+        avgStayDuration: parseFloat(avgStayDuration),
+        topRoomType,
       };
     },
     [rooms.length, userCount]
   );
 
-  // Calculate revenue trend - FIXED: Only count bookings with payment_status = "paid"
+  // Calculate revenue trend - Only count paid bookings
   const calculateRevenueTrend = useCallback((bookings, timeframe) => {
     if (!bookings || bookings.length === 0) return [];
 
@@ -569,7 +451,7 @@ export default function BookingsPage() {
 
     paidBookings.forEach((booking) => {
       try {
-        const bookingDate = parseISO(booking.created_at);
+        const bookingDate = parseISO(booking.created_at || booking.check_in_date);
         if (!isValid(bookingDate)) return;
 
         let periodKey;
@@ -604,8 +486,8 @@ export default function BookingsPage() {
       .slice(-12)
       .map((item) => ({
         ...item,
-        revenue: item.revenue, // Keep as number for chart
-        revenueFormatted: formatPrice(item.revenue), // Add formatted value for tooltip
+        revenue: item.revenue,
+        revenueFormatted: formatPrice(item.revenue),
       }));
   }, []);
 
@@ -767,7 +649,7 @@ export default function BookingsPage() {
     applyFilters();
   }, [applyFilters]);
 
-  // Initial data fetch and real-time setup
+  // Initial data fetch
   useEffect(() => {
     const initialize = async () => {
       // Check admin role
@@ -791,46 +673,24 @@ export default function BookingsPage() {
         return;
       }
 
-      isMountedRef.current = true;
-
-      // Fetch initial data
-      await fetchInitialData();
-
-      // Setup real-time subscriptions
-      setupRealtimeSubscriptions();
-
-      // Set up periodic health check
-      const healthCheckInterval = setInterval(() => {
-        if (isMountedRef.current && subscriptionRef.current) {
-          const channel = subscriptionRef.current;
-          // Send a ping to keep connection alive
-          channel.send({ type: "broadcast", event: "ping", payload: {} });
-        }
-      }, 30000); // Every 30 seconds
-
-      return () => {
-        clearInterval(healthCheckInterval);
-      };
+      await fetchAllData();
     };
 
     initialize();
+  }, [router, fetchAllData]);
 
-    // Cleanup function
-    return () => {
-      console.log("Cleaning up subscriptions...");
-      isMountedRef.current = false;
-
-      if (subscriptionRef.current) {
-        supabase.removeChannel(subscriptionRef.current);
-        subscriptionRef.current = null;
+  // Reset date range when time period changes
+  useEffect(() => {
+    if (timePeriod !== "all") {
+      const range = getTimePeriodRange(timePeriod);
+      if (range) {
+        setDateRange({
+          start: format(range.start, "yyyy-MM-dd"),
+          end: format(range.end, "yyyy-MM-dd"),
+        });
       }
-
-      if (subscription) {
-        supabase.removeChannel(subscription);
-        setSubscription(null);
-      }
-    };
-  }, [router, fetchInitialData, setupRealtimeSubscriptions]);
+    }
+  }, [timePeriod, getTimePeriodRange]);
 
   // Handler functions
   const handleViewBooking = (booking) => {
@@ -865,6 +725,8 @@ export default function BookingsPage() {
       if (error) throw error;
       alert("Booking updated successfully!");
       setShowEditModal(false);
+      // Refresh data after edit
+      fetchAllData();
     } catch (error) {
       console.error("Error updating booking:", error);
       alert("Failed to update booking");
@@ -881,6 +743,8 @@ export default function BookingsPage() {
       if (error) throw error;
       alert("Booking deleted successfully!");
       setShowDeleteModal(false);
+      // Refresh data after deletion
+      fetchAllData();
     } catch (error) {
       console.error("Error deleting booking:", error);
       alert("Failed to delete booking");
@@ -895,19 +759,6 @@ export default function BookingsPage() {
       setSortOrder("desc");
     }
   };
-
-  // Reset date range when time period changes
-  useEffect(() => {
-    if (timePeriod !== "all") {
-      const range = getTimePeriodRange(timePeriod);
-      if (range) {
-        setDateRange({
-          start: format(range.start, "yyyy-MM-dd"),
-          end: format(range.end, "yyyy-MM-dd"),
-        });
-      }
-    }
-  }, [timePeriod, getTimePeriodRange]);
 
   // Component render functions
   const StatusBadge = ({ status }) => {
@@ -1167,7 +1018,7 @@ export default function BookingsPage() {
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading bookings data...</p>
+          <p className="text-gray-400">Loading dashboard data...</p>
         </div>
       </div>
     );
@@ -1200,16 +1051,16 @@ export default function BookingsPage() {
               </button>
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-3 h-3 rounded-full animate-pulse ${
-                    isSyncing ? "bg-yellow-500" : "bg-emerald-500"
+                  className={`w-3 h-3 rounded-full ${
+                    isRefreshing ? "animate-pulse bg-yellow-500" : "bg-gray-500"
                   }`}
                 ></div>
                 <span
                   className={`text-sm ${
-                    isSyncing ? "text-yellow-400" : "text-emerald-400"
+                    isRefreshing ? "text-yellow-400" : "text-gray-400"
                   }`}
                 >
-                  {isSyncing ? "Syncing..." : "Live"}
+                  {isRefreshing ? "Refreshing..." : "Offline"}
                 </span>
               </div>
               <span className="text-xs text-gray-400">
@@ -1219,19 +1070,19 @@ export default function BookingsPage() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={fetchInitialData}
-                disabled={isSyncing}
+                onClick={fetchAllData}
+                disabled={isRefreshing}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
-                  isSyncing
+                  isRefreshing
                     ? "bg-gray-700 cursor-not-allowed"
                     : "bg-sky-600 hover:bg-sky-700"
                 }`}
               >
                 <RefreshCw
-                  className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
                 />
                 <span className="text-sm">
-                  {isSyncing ? "Refreshing..." : "Refresh"}
+                  {isRefreshing ? "Refreshing..." : "Refresh Data"}
                 </span>
               </button>
             </div>
@@ -1256,8 +1107,7 @@ export default function BookingsPage() {
                   Admin Management Dashboard
                 </h1>
                 <p className="text-sm text-gray-400">
-                  Manage and track all hotel bookings{" "}
-                  {isSyncing && "(Syncing...)"}
+                  Manage and track all hotel bookings
                 </p>
               </div>
               <div className="flex lg:justify-end items-center gap-4">
@@ -1288,9 +1138,9 @@ export default function BookingsPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">
                 Performance Overview
-                {isSyncing && (
+                {isRefreshing && (
                   <span className="ml-2 text-sm text-sky-400">
-                    • Updating...
+                    • Refreshing...
                   </span>
                 )}
               </h2>
@@ -1687,18 +1537,18 @@ export default function BookingsPage() {
                     <RefreshCw className="w-4 h-4" /> Clear All Filters
                   </button>
                   <button
-                    onClick={fetchInitialData}
-                    disabled={isSyncing}
+                    onClick={fetchAllData}
+                    disabled={isRefreshing}
                     className={`flex cursor-pointer items-center gap-2 px-4 py-2.5 rounded-xl transition-colors ${
-                      isSyncing
+                      isRefreshing
                         ? "bg-gray-700 cursor-not-allowed"
                         : "bg-sky-600 hover:bg-sky-700"
                     }`}
                   >
                     <RefreshCw
-                      className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}
+                      className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
                     />
-                    {isSyncing ? "Syncing..." : "Refresh Data"}
+                    {isRefreshing ? "Refreshing..." : "Refresh Data"}
                   </button>
                 </div>
               </div>
@@ -1811,7 +1661,7 @@ export default function BookingsPage() {
         </main>
       </div>
 
-      {/* Modals */}
+      {/* Delete Modal */}
       {showDeleteModal && bookingToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md">
@@ -1850,6 +1700,7 @@ export default function BookingsPage() {
         </div>
       )}
 
+      {/* Edit Modal */}
       {showEditModal && selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-2xl">

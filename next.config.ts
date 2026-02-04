@@ -10,8 +10,8 @@ const nextConfig = {
       "images.unsplash.com",
       "media.istockphoto.com",
       "plus.unsplash.com",
-      "royalmoss.netlify.app"
-    
+      "royalmoss.netlify.app",
+    "royalmoss.org"
     ],
   },
 };

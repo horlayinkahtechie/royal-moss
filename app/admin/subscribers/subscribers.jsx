@@ -126,14 +126,14 @@ export default function SubscribersPage() {
           // Generate some mock engagement data for demonstration
           const engagementScore = Math.floor(Math.random() * 100);
           const lastEmailSent = new Date(
-            Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+            Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000,
           );
           const totalEmails = Math.floor(Math.random() * 50) + 1;
           const openedEmails = Math.floor(
-            totalEmails * (Math.random() * 0.7 + 0.3)
+            totalEmails * (Math.random() * 0.7 + 0.3),
           );
           const clickedEmails = Math.floor(
-            openedEmails * (Math.random() * 0.4 + 0.1)
+            openedEmails * (Math.random() * 0.4 + 0.1),
           );
 
           return {
@@ -193,15 +193,15 @@ export default function SubscribersPage() {
     // Calculate email engagement stats
     const totalEmailsSent = subsData.reduce(
       (sum, sub) => sum + (sub.emails_sent || 0),
-      0
+      0,
     );
     const totalOpened = subsData.reduce(
       (sum, sub) => sum + (sub.emails_opened || 0),
-      0
+      0,
     );
     const totalClicked = subsData.reduce(
       (sum, sub) => sum + (sub.emails_clicked || 0),
-      0
+      0,
     );
 
     const openRate =
@@ -209,7 +209,7 @@ export default function SubscribersPage() {
     const clickRate =
       totalEmailsSent > 0 ? (totalClicked / totalEmailsSent) * 100 : 0;
     const unsubscribed = subsData.filter(
-      (sub) => sub.status === "unsubscribed"
+      (sub) => sub.status === "unsubscribed",
     ).length;
 
     setStats({
@@ -236,7 +236,7 @@ export default function SubscribersPage() {
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter((sub) =>
-        sub.email?.toLowerCase().includes(searchQuery.toLowerCase())
+        sub.email?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
@@ -324,7 +324,7 @@ export default function SubscribersPage() {
 
   const handleSelectSubscriber = (id) => {
     setSelectedSubscribers((prev) =>
-      prev.includes(id) ? prev.filter((subId) => subId !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((subId) => subId !== id) : [...prev, id],
     );
   };
 
@@ -347,7 +347,7 @@ export default function SubscribersPage() {
         emailCampaign.sendTo === "all"
           ? filteredSubscribers
           : filteredSubscribers.filter((sub) =>
-              selectedSubscribers.includes(sub.id)
+              selectedSubscribers.includes(sub.id),
             );
 
       if (recipients.length === 0) {
@@ -371,7 +371,7 @@ export default function SubscribersPage() {
       }));
 
       alert(
-        `Email campaign "${emailCampaign.campaignName}" sent successfully to ${recipients.length} subscribers!`
+        `Email campaign "${emailCampaign.campaignName}" sent successfully to ${recipients.length} subscribers!`,
       );
       setShowBulkEmailModal(false);
       setEmailCampaign({
@@ -495,24 +495,9 @@ export default function SubscribersPage() {
                   <span className="font-medium text-white">{joinedDate}</span>
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <div className="text-sm text-gray-400">Engagement</div>
-                <EngagementBadge score={subscriber.engagement_score} />
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <div className="text-sm text-gray-400">Open Rate</div>
-                <div className="flex items-center gap-2">
-                  <MailCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="font-medium text-white">
-                    {subscriber.open_rate || 0}%
-                  </span>
-                </div>
-              </div>
-
               <div className="space-y-1">
                 <div className="text-sm text-gray-400">Last Email</div>
                 <div className="flex items-center gap-2">
@@ -876,7 +861,7 @@ export default function SubscribersPage() {
                   <div>
                     <div className="text-sm text-gray-400">From:</div>
                     <div className="text-white">
-                      Royal Moss Hotel &lt;newsletter@royalmoss.com&gt;
+                      Royal Moss Hotel &lt;newsletter@royalmoss.org&gt;
                     </div>
                   </div>
                   <div>
@@ -1046,7 +1031,7 @@ export default function SubscribersPage() {
                 icon: <CheckCircle className="w-6 h-6" />,
                 color: "text-emerald-400",
                 change: `${Math.round(
-                  (stats.activeSubscribers / stats.totalSubscribers) * 100
+                  (stats.activeSubscribers / stats.totalSubscribers) * 100,
                 )}% active`,
               },
             ].map((stat, index) => (

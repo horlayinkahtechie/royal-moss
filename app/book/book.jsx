@@ -38,8 +38,8 @@ import {
   parseISO,
   isAfter,
 } from "date-fns";
+import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 
-// Utility function to format price with K, M, B suffixes
 const formatPrice = (amount, includeK = false) => {
   if (amount === null || amount === undefined) return "₦0";
 
@@ -124,6 +124,8 @@ export default function Book() {
     fullName: "",
   });
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+const [showAllAmenities, setShowAllAmenities] = useState(false);
+
 
   // Form state
   const [formData, setFormData] = useState({
@@ -600,10 +602,8 @@ export default function Book() {
           discountedPrice: data.discounted_price_per_night,
           rating: data.user_ratings || 4.5,
           guests: data.no_of_guest,
-          size: data.room_dimension,
           roomNumber: data.room_number,
-          floor: data.floor || "3rd",
-          view: data.view || "Ocean View",
+          view: data.view || "Nature View",
           description: data.room_description,
           images: images,
           amenities: data.amenities || [],
@@ -1612,6 +1612,12 @@ export default function Book() {
                         </span>
                       </div>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10] text-gray-700">
+                        {room.description}
+                      </p>
+                     
+                    </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50 p-3 rounded-xl">
@@ -1623,24 +1629,16 @@ export default function Book() {
                           {room.guests}
                         </div>
                       </div>
-                      <div className="bg-gray-50 p-3 rounded-xl">
-                        <div className="flex items-center text-gray-700 mb-1">
-                          <Maximize2 className="w-4 h-4 mr-2 text-purple-500" />
-                          <span className="text-sm font-medium">Size</span>
-                        </div>
-                        <div className="text-lg font-bold text-gray-900">
-                          {room.size}
-                        </div>
-                      </div>
+                      
                       <div className="bg-gray-50 p-3 rounded-xl">
                         <div className="flex items-center text-gray-700 mb-1">
                           <Building className="w-4 h-4 mr-2 text-emerald-500" />
                           <span className="text-sm font-medium">
-                            Floor/Room Number
+                            Room Number
                           </span>
                         </div>
                         <div className="text-lg font-bold text-gray-900">
-                          {room.floor}/{room.roomNumber}
+                          {room.roomNumber}
                         </div>
                       </div>
                       <div className="bg-gray-50 p-3 rounded-xl">
@@ -1652,6 +1650,98 @@ export default function Book() {
                           {room.view}
                         </div>
                       </div>
+                      
+
+<div className="col-span-2 bg-gradient-to-br from-gray-50 to-white p-5 rounded-xl border border-gray-100">
+  <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center">
+     
+      <div>
+        <span className="text-sm font-semibold text-gray-900">Room Amenities</span>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Everything you need for a comfortable stay
+        </p>
+      </div>
+    </div>
+    {room.amenities && Array.isArray(room.amenities) && room.amenities.length > 5 && (
+      <button
+        onClick={() => setShowAllAmenities(!showAllAmenities)}
+        className="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center"
+      >
+        {showAllAmenities ? 'Show Less' : `Show All (${room.amenities.length})`}
+        {showAllAmenities ? (
+          <ChevronUp className="w-3 h-3 ml-1" />
+        ) : (
+          <ChevronDown className="w-3 h-3 ml-1" />
+        )}
+      </button>
+    )}
+  </div>
+  
+  {room.amenities && Array.isArray(room.amenities) && room.amenities.length > 0 ? (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {(showAllAmenities 
+          ? room.amenities 
+          : room.amenities.slice(0, 6) // Show 6 by default
+        ).map((amenity, index) => (
+          <div 
+            key={index}
+            className="flex items-start space-x-2.5 p-3 bg-white rounded-lg border border-gray-100 hover:border-amber-200 hover:shadow-sm transition-all duration-200 group"
+          >
+            {/* Icon */}
+            <div className="w-6 h-6 bg-gradient-to-br from-amber-50 to-amber-100 rounded-md flex items-center justify-center mt-0.5 flex-shrink-0 group-hover:from-amber-100 group-hover:to-amber-200">
+              <svg 
+                className="w-3.5 h-3.5 text-amber-600" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            
+            {/* Text */}
+            <span className="text-sm text-gray-800 font-medium leading-tight">
+              {amenity
+                .split('_')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ')}
+            </span>
+          </div>
+        ))}
+      </div>
+      
+      {/* Show More Button (Bottom) - Alternative placement */}
+      {room.amenities.length > 6 && (
+        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-center">
+          <button
+            onClick={() => setShowAllAmenities(!showAllAmenities)}
+            className="px-4 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center"
+          >
+            {showAllAmenities ? (
+              <>
+                <ChevronUp className="w-4 h-4 mr-1.5" />
+                Show Less Amenities
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4 mr-1.5" />
+                Show {room.amenities.length - 6} More Amenities
+              </>
+            )}
+          </button>
+        </div>
+      )}
+    </>
+  ) : (
+    <div className="py-6 text-center">
+      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <Sparkles className="w-6 h-6 text-gray-400" />
+      </div>
+      <p className="text-sm text-gray-500">Amenities information not available</p>
+    </div>
+  )}
+</div>
                     </div>
 
                     {/* Availability Status */}

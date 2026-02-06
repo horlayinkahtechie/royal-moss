@@ -147,8 +147,8 @@ export default function BookingsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
 
-  // Debounce search
-  const searchTimeoutRef = useRef(null);
+  // Search state
+  const searchInputRef = useRef(null);
 
   // Refs for real-time
   const subscriptionRef = useRef(null);
@@ -162,11 +162,6 @@ export default function BookingsPage() {
 
   // Cleanup function
   const cleanup = useCallback(() => {
-    // Clean up search timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
     // Clean up abort controller
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -201,7 +196,7 @@ export default function BookingsPage() {
 
       // Filter ONLY paid bookings for ALL statistics
       const paidBookings = bookingsData.filter(
-        (booking) => booking.payment_status === "paid"
+        (booking) => booking.payment_status === "paid",
       );
 
       if (paidBookings.length === 0) {
@@ -227,7 +222,7 @@ export default function BookingsPage() {
       const totalBookings = filteredBookings.length;
       const totalRevenue = filteredBookings.reduce(
         (sum, booking) => sum + (parseFloat(booking.total_amount) || 0),
-        0
+        0,
       );
       const averageBookingValue =
         totalBookings > 0 ? totalRevenue / totalBookings : 0;
@@ -246,7 +241,7 @@ export default function BookingsPage() {
       // Calculate average stay duration (only for paid bookings)
       const totalNights = filteredBookings.reduce(
         (sum, booking) => sum + (parseInt(booking.no_of_nights) || 0),
-        0
+        0,
       );
       const avgStayDuration =
         totalBookings > 0 ? (totalNights / totalBookings).toFixed(1) : 0;
@@ -282,7 +277,7 @@ export default function BookingsPage() {
         topRoomType, // Only from paid bookings
       };
     },
-    []
+    [],
   );
 
   const filterBookingsByPeriod = (bookingsData, period) => {
@@ -313,7 +308,7 @@ export default function BookingsPage() {
     return bookingsData.filter((booking) => {
       try {
         const bookingDate = new Date(
-          booking.created_at || booking.check_in_date
+          booking.created_at || booking.check_in_date,
         );
         return bookingDate >= startDate && bookingDate <= endDate;
       } catch {
@@ -330,7 +325,7 @@ export default function BookingsPage() {
 
     // Filter only paid bookings for revenue trend
     const paidBookings = bookingsData.filter(
-      (booking) => booking.payment_status === "paid"
+      (booking) => booking.payment_status === "paid",
     );
 
     if (paidBookings.length === 0) {
@@ -361,7 +356,9 @@ export default function BookingsPage() {
         break;
       case "all":
         const earliestDate = new Date(
-          Math.min(...paidBookings.map((b) => new Date(b.created_at).getTime()))
+          Math.min(
+            ...paidBookings.map((b) => new Date(b.created_at).getTime()),
+          ),
         );
         startDate = earliestDate;
         groupFormat = "yyyy";
@@ -389,7 +386,7 @@ export default function BookingsPage() {
     paidBookings.forEach((booking) => {
       try {
         const bookingDate = new Date(
-          booking.created_at || booking.check_in_date
+          booking.created_at || booking.check_in_date,
         );
         const periodKey = format(bookingDate, groupFormat);
 
@@ -431,7 +428,7 @@ export default function BookingsPage() {
         // Apply filters
         if (searchTerm) {
           query = query.or(
-            `guest_name.ilike.%${searchTerm}%,guest_email.ilike.%${searchTerm}%,booking_id.ilike.%${searchTerm}%,room_number.ilike.%${searchTerm}%`
+            `guest_name.ilike.%${searchTerm}%,guest_email.ilike.%${searchTerm}%,booking_id.ilike.%${searchTerm}%,room_number.ilike.%${searchTerm}%`,
           );
         }
 
@@ -508,7 +505,7 @@ export default function BookingsPage() {
         if (selectedRoomType !== "all") {
           filteredBookings = filteredBookings.filter(
             (booking) =>
-              roomMap[booking.room_number]?.room_category === selectedRoomType
+              roomMap[booking.room_number]?.room_category === selectedRoomType,
           );
         }
 
@@ -529,13 +526,13 @@ export default function BookingsPage() {
         if (selectedStatus !== "all") {
           allBookingsQuery = allBookingsQuery.eq(
             "booking_status",
-            selectedStatus
+            selectedStatus,
           );
         }
         if (selectedPaymentStatus !== "all") {
           allBookingsQuery = allBookingsQuery.eq(
             "payment_status",
-            selectedPaymentStatus
+            selectedPaymentStatus,
           );
         }
 
@@ -552,14 +549,14 @@ export default function BookingsPage() {
             allEnrichedBookings,
             usersCount || 0,
             timePeriod,
-            roomsData
+            roomsData,
           );
           setStats(statsData);
 
           // Calculate revenue trend (only from paid bookings)
           const trendData = calculateRevenueTrend(
             allEnrichedBookings,
-            chartTimeFrame
+            chartTimeFrame,
           );
           setRevenueTrend(trendData);
         }
@@ -588,7 +585,7 @@ export default function BookingsPage() {
       chartTimeFrame,
       calculateStatistics,
       calculateRevenueTrend,
-    ]
+    ],
   );
 
   // Setup real-time subscription
@@ -620,7 +617,7 @@ export default function BookingsPage() {
           // Hide syncing indicator after a moment
           setTimeout(() => setIsSyncing(false), 1000);
           setLastUpdate(new Date());
-        }
+        },
       )
       .on("system", { event: "connected" }, () => {
         console.log("✅ Connected to real-time");
@@ -692,7 +689,7 @@ export default function BookingsPage() {
     };
   }, []);
 
-  // Reset to page 1 when filters change (except search)
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [
@@ -704,23 +701,28 @@ export default function BookingsPage() {
     sortOrder,
   ]);
 
-  // Handle search with debounce
+  // FIXED: Handle search - only search when Enter is pressed or search button is clicked
   const handleSearchChange = (value) => {
     setSearchQuery(value);
-
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Set new timeout
-    searchTimeoutRef.current = setTimeout(() => {
-      setCurrentPage(1);
-      fetchData(value);
-    }, 500);
+    // Don't fetch data automatically - wait for Enter key or search button click
   };
 
-  // Re-fetch when filters change
+  // Handle Enter key press for search
+  const handleSearchKeyPress = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setCurrentPage(1);
+      fetchData(searchQuery);
+    }
+  };
+
+  // Handle search button click (we'll add this in the UI)
+  const handleSearchClick = () => {
+    setCurrentPage(1);
+    fetchData(searchQuery);
+  };
+
+  // Re-fetch when filters change (except search)
   useEffect(() => {
     fetchData();
   }, [
@@ -805,7 +807,7 @@ export default function BookingsPage() {
       const checkIn = new Date(editFormData.check_in_date);
       const checkOut = new Date(editFormData.check_out_date);
       const no_of_nights = Math.ceil(
-        (checkOut - checkIn) / (1000 * 60 * 60 * 24)
+        (checkOut - checkIn) / (1000 * 60 * 60 * 24),
       );
 
       const updateData = {
@@ -886,11 +888,10 @@ export default function BookingsPage() {
           <div class="invoice-details">
             <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
               <div>
-                <h3>Hotel Information</h3>
+                <h3>Royal Moss</h3>
                 <p>Luxury Hotel & Resort</p>
-                <p>123 Ocean View Drive</p>
-                <p>Miami Beach, FL 33139</p>
-                <p>Phone: (305) 555-0123</p>
+                <p>KLM 21, Iworo-Aradagun Road, Badagry (Moghoto)</p>
+                <p>Phone: +(234) 8089 553 225</p>
               </div>
               <div>
                 <h3>Guest Information</h3>
@@ -905,11 +906,11 @@ export default function BookingsPage() {
                 <h3>Booking Details</h3>
                 <p><strong>Check-in:</strong> ${format(
                   new Date(booking.check_in_date),
-                  "MMMM dd, yyyy"
+                  "MMMM dd, yyyy",
                 )}</p>
                 <p><strong>Check-out:</strong> ${format(
                   new Date(booking.check_out_date),
-                  "MMMM dd, yyyy"
+                  "MMMM dd, yyyy",
                 )}</p>
                 <p><strong>Nights:</strong> ${booking.no_of_nights}</p>
               </div>
@@ -964,7 +965,7 @@ export default function BookingsPage() {
 
           <div class="footer">
             <p>Thank you for choosing our Royal Moss!</p>
-            <p>For any questions, please contact our customer service at (305) 555-0123</p>
+            <p>For any questions, please contact our customer service at +234 8089 553 225</p>
             <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">Print Invoice</button>
           </div>
         </body>
@@ -978,7 +979,7 @@ export default function BookingsPage() {
   // Send email
   const handleSendEmail = (booking) => {
     const subject = encodeURIComponent(
-      `Your Booking Confirmation - ${booking.booking_id}`
+      `Your Booking Confirmation - ${booking.booking_id}`,
     );
     const body = encodeURIComponent(`Dear ${booking.guest_name},
 
@@ -1337,7 +1338,7 @@ Hotel Management Team`);
                           {JSON.stringify(
                             selectedBooking.payment_data,
                             null,
-                            2
+                            2,
                           )}
                         </pre>
                       </div>
@@ -2052,7 +2053,7 @@ Hotel Management Team`);
           <button
             onClick={() => setCurrentPage(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className={`p-2 rounded-lg ${
+            className={`p-2 rounded-lg cursor-pointer ${
               currentPage === totalPages
                 ? "text-gray-600 cursor-not-allowed"
                 : "text-gray-400 hover:bg-gray-700/50"
@@ -2373,12 +2374,20 @@ Hotel Management Team`);
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   placeholder="Search by guest name, email, booking ID, or room..."
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-white placeholder-gray-500"
+                  onKeyDown={handleSearchKeyPress}
+                  className="w-full pl-12 pr-24 py-3 bg-gray-900/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-white placeholder-gray-500"
                 />
+                <button
+                  onClick={handleSearchClick}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-sky-600 hover:bg-sky-700 cursor-pointer text-white rounded-lg transition-colors text-sm"
+                >
+                  Search
+                </button>
               </div>
 
               {/* View Toggle */}
@@ -2474,31 +2483,6 @@ Hotel Management Team`);
                     ))}
                   </select>
                 </div>
-
-                {/* Date Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Check-in Date
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={dateRange.start}
-                      onChange={(e) =>
-                        setDateRange({ ...dateRange, start: e.target.value })
-                      }
-                      className="flex-1 px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-white"
-                    />
-                    <input
-                      type="date"
-                      value={dateRange.end}
-                      onChange={(e) =>
-                        setDateRange({ ...dateRange, end: e.target.value })
-                      }
-                      className="flex-1 px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-white"
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* Sort & Actions */}
@@ -2545,10 +2529,6 @@ Hotel Management Team`);
                       setSelectedPaymentStatus("all");
                       setDateRange({ start: "", end: "" });
                       setCurrentPage(1);
-                      // Clear search timeout
-                      if (searchTimeoutRef.current) {
-                        clearTimeout(searchTimeoutRef.current);
-                      }
                       fetchData("");
                     }}
                     className="flex items-center cursor-pointer gap-2 px-4 py-2.5 border border-gray-600 hover:bg-gray-700/50 rounded-xl transition-colors text-white"
@@ -2599,9 +2579,6 @@ Hotel Management Team`);
                       setSelectedPaymentStatus("all");
                       setDateRange({ start: "", end: "" });
                       setCurrentPage(1);
-                      if (searchTimeoutRef.current) {
-                        clearTimeout(searchTimeoutRef.current);
-                      }
                       fetchData("");
                     }}
                     className="px-6 py-3 border cursor-pointer border-gray-600 hover:bg-gray-700/50 text-white rounded-xl font-medium transition-colors"

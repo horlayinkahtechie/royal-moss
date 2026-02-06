@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import supabase from '../../lib/supabase';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -24,6 +23,21 @@ function isRateLimited(ip, limit = 5, windowMs = 15 * 60 * 1000) {
   requests.push(now);
   return false;
 }
+
+// Optional: Clean up old rate limit entries periodically
+setInterval(() => {
+  const now = Date.now();
+  const windowStart = now - (15 * 60 * 1000);
+  
+  for (const [ip, requests] of rateLimit.entries()) {
+    const validRequests = requests.filter(time => time > windowStart);
+    if (validRequests.length === 0) {
+      rateLimit.delete(ip);
+    } else {
+      rateLimit.set(ip, validRequests);
+    }
+  }
+}, 5 * 60 * 1000); // Clean every 5 minutes
 
 export async function POST(request) {
   try {
@@ -60,73 +74,69 @@ export async function POST(request) {
       );
     }
     
-    // Sanitize inputs
-    const sanitizedData = {
-      name: formData.name.substring(0, 100),
-      email: formData.email.substring(0, 100),
-      phone: formData.phone ? formData.phone.substring(0, 20) : null,
-      subject: formData.subject.substring(0, 200),
-      message: formData.message.substring(0, 5000),
-      ip_address: ip.substring(0, 45),
-      user_agent: userAgent.substring(0, 500)
-    };
-    
-    // Save to Supabase
-    const { data: dbData, error: dbError } = await supabase
-      .from('messages')
-      .insert({
-        name: sanitizedData.name,
-        email: sanitizedData.email,
-        phone: sanitizedData.phone,
-        subject: sanitizedData.subject,
-        message: sanitizedData.message,
-        ip_address: sanitizedData.ip_address,
-        user_agent: sanitizedData.user_agent
-      })
-      .select()
-      .single();
-    
-    if (dbError) {
-      console.error('Supabase error:', dbError);
+    // Validate message length
+    if (formData.message.length < 10) {
       return NextResponse.json(
-        { error: 'Failed to save message to database' },
-        { status: 500 }
+        { error: 'Message is too short. Please provide more details.' },
+        { status: 400 }
       );
     }
+    
+    if (formData.message.length > 5000) {
+      return NextResponse.json(
+        { error: 'Message is too long. Maximum 5000 characters allowed.' },
+        { status: 400 }
+      );
+    }
+    
+    // Sanitize inputs
+    const sanitizedData = {
+      name: formData.name.substring(0, 100).trim(),
+      email: formData.email.substring(0, 100).trim(),
+      phone: formData.phone ? formData.phone.substring(0, 20).trim() : null,
+      subject: formData.subject.substring(0, 200).trim(),
+      message: formData.message.substring(0, 5000).trim(),
+      ip_address: ip.substring(0, 45),
+      user_agent: userAgent.substring(0, 500),
+      timestamp: new Date().toISOString()
+    };
+    
+    // Generate a unique message ID
+    const messageId = `MSG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Log the submission (for debugging)
+    console.log('Contact form submission:', {
+      messageId,
+      name: sanitizedData.name,
+      email: sanitizedData.email,
+      timestamp: sanitizedData.timestamp
+    });
     
     // Send email using Resend
     try {
       const emailData = await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL,
-        to: 'horlayinkah2005@gmail.com',
+        from: process.env.RESEND_FROM_EMAIL || 'Royal Moss <noreply@royalmoss.org>',
+        to: process.env.RESEND_TO_EMAIL || 'royalmossng@gmail.com',
         subject: `Royal Moss Contact - ${sanitizedData.subject}`,
         replyTo: sanitizedData.email,
-        html: buildEmailHTML(sanitizedData, dbData.id),
-        text: buildEmailText(sanitizedData, dbData.id),
+        html: buildEmailHTML(sanitizedData, messageId),
+        text: buildEmailText(sanitizedData, messageId),
       });
       
       console.log('Email sent successfully:', emailData);
       
-      // Update message record with email ID
-      await supabase
-        .from('messages')
-        .update({ 
-          responded: true,
-          is_read: true 
-        })
-        .eq('id', dbData.id);
-      
     } catch (emailError) {
       console.error('Email sending error:', emailError);
       // Don't fail the request if email fails, just log it
+      // Continue to return success to the user
     }
     
     return NextResponse.json({
       success: true,
       message: 'Your message has been sent successfully',
       data: {
-        id: dbData.id,
-        timestamp: new Date().toISOString()
+        id: messageId,
+        timestamp: sanitizedData.timestamp
       }
     });
     
@@ -144,6 +154,17 @@ export async function POST(request) {
 }
 
 function buildEmailHTML(data, messageId) {
+  // Helper function to detect if message contains urgent/emergency keywords
+  const isUrgent = () => {
+    const urgentKeywords = ['urgent', 'emergency', 'asap', 'immediately', 'critical'];
+    const subject = data.subject.toLowerCase();
+    const message = data.message.toLowerCase();
+    
+    return urgentKeywords.some(keyword => 
+      subject.includes(keyword) || message.includes(keyword)
+    );
+  };
+  
   return `
     <!DOCTYPE html>
     <html>
@@ -405,13 +426,13 @@ function buildEmailHTML(data, messageId) {
           <div class="info-card">
             <div class="info-item">
               <div class="label">From:</div>
-              <div class="value"><strong>${data.name}</strong></div>
+              <div class="value"><strong>${escapeHtml(data.name)}</strong></div>
             </div>
             
             <div class="info-item">
               <div class="label">Email:</div>
               <div class="value">
-                <a href="mailto:${data.email}">${data.email}</a>
+                <a href="mailto:${escapeHtml(data.email)}">${escapeHtml(data.email)}</a>
               </div>
             </div>
             
@@ -419,19 +440,19 @@ function buildEmailHTML(data, messageId) {
             <div class="info-item">
               <div class="label">Phone:</div>
               <div class="value">
-                <a href="tel:${data.phone}">${data.phone}</a>
+                <a href="tel:${escapeHtml(data.phone)}">${escapeHtml(data.phone)}</a>
               </div>
             </div>
             ` : ''}
             
             <div class="info-item">
               <div class="label">Subject:</div>
-              <div class="value"><strong>${data.subject}</strong></div>
+              <div class="value"><strong>${escapeHtml(data.subject)}</strong></div>
             </div>
             
             <div class="info-item">
               <div class="label">Received:</div>
-              <div class="value">${new Date().toLocaleString('en-US', { 
+              <div class="value">${new Date(data.timestamp).toLocaleString('en-US', { 
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -443,31 +464,24 @@ function buildEmailHTML(data, messageId) {
             </div>
           </div>
           
-          ${data.subject.toLowerCase().includes('urgent') || 
-            data.subject.toLowerCase().includes('emergency') ||
-            data.message.toLowerCase().includes('urgent') ||
-            data.message.toLowerCase().includes('emergency') ?
-            `<div class="urgent">
-              <span>URGENT</span>
-              This message has been flagged as urgent
-            </div>` : ''
-          }
+          ${isUrgent() ? `
+          <div class="urgent">
+            <span>URGENT</span>
+            This message has been flagged as urgent
+          </div>
+          ` : ''}
           
           <div class="message-box">
-            ${data.message.replace(/\n/g, '<br>')}
+            ${escapeHtml(data.message).replace(/\n/g, '<br>')}
           </div>
           
           <div class="actions">
-            <a href="mailto:${data.email}?subject=Re: ${encodeURIComponent(data.subject)}" class="btn btn-primary">
-              📧 Reply to ${data.name.split(' ')[0]}
+            <a href="mailto:${escapeHtml(data.email)}?subject=Re: ${encodeURIComponent(data.subject)}" class="btn btn-primary">
+              📧 Reply to ${escapeHtml(data.name.split(' ')[0])}
             </a>
             
-            <a href="tel:${data.phone || '+2341234567890'}" class="btn btn-secondary">
+            <a href="tel:${data.phone || '+2348089553225'}" class="btn btn-secondary">
               📞 Call ${data.phone ? 'Client' : 'Hotel'}
-            </a>
-            
-            <a href="https://royalmoss.com/admin/messages/${messageId}" class="btn btn-secondary">
-              📋 View in Dashboard
             </a>
           </div>
           
@@ -495,9 +509,9 @@ function buildEmailHTML(data, messageId) {
             Please respond within <strong>24 hours</strong> to ensure excellent customer service.
           </p>
           <p style="margin-top: 10px;">
-            <a href="https://royalmoss.com">royalmoss.com</a> | 
-            <a href="https://royalmoss.com/admin">Admin Dashboard</a> | 
-            <a href="mailto:support@royalmoss.com">Support</a>
+            <a href="https://royalmoss.org">royalmoss.org</a> | 
+            <a href="https://royalmoss.org/admin/dashboard">Admin Dashboard</a> | 
+            <a href="mailto:contact@royalmoss.org">Support</a>
           </p>
         </div>
       </div>
@@ -515,8 +529,9 @@ From: ${data.name}
 Email: ${data.email}
 ${data.phone ? `Phone: ${data.phone}` : ''}
 Subject: ${data.subject}
-Time: ${new Date().toLocaleString()}
+Time: ${new Date(data.timestamp).toLocaleString()}
 Message ID: ${messageId}
+IP Address: ${data.ip_address}
 
 MESSAGE:
 ${data.message}
@@ -527,15 +542,14 @@ This message was sent via the Royal Moss Hotel contact form.
   `;
 }
 
-// Optional: GET endpoint for testing
-export async function GET() {
-  return NextResponse.json({
-    service: 'Royal Moss Contact API',
-    version: '1.0.0',
-    status: 'operational',
-    endpoints: {
-      POST: '/api/contact - Submit contact form',
-      rate_limit: '5 requests per 15 minutes'
-    }
-  });
+// Helper function to escape HTML to prevent XSS
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
 }

@@ -239,7 +239,7 @@ export default function BookingsPage() {
         }
       });
     },
-    [getTimePeriodRange]
+    [getTimePeriodRange],
   );
 
   // Fetch all data manually
@@ -300,7 +300,6 @@ export default function BookingsPage() {
         .filter(Boolean);
       const uniqueRoomTypes = [...new Set(roomCategories)];
       setRoomTypeOptions(["all", ...uniqueRoomTypes]);
-
     } catch (error) {
       console.error("Error fetching data:", error);
       alert("Failed to load data. Please try again.");
@@ -332,7 +331,7 @@ export default function BookingsPage() {
 
       // Filter only paid bookings for ALL calculations
       const paidBookings = bookings.filter(
-        (booking) => booking.payment_status === "paid"
+        (booking) => booking.payment_status === "paid",
       );
 
       // Calculate basic stats for PAID bookings only
@@ -409,7 +408,7 @@ export default function BookingsPage() {
         topRoomType,
       };
     },
-    [rooms.length, userCount]
+    [rooms.length, userCount],
   );
 
   // Calculate revenue trend - Only count paid bookings
@@ -446,12 +445,14 @@ export default function BookingsPage() {
 
     // Filter only paid bookings for revenue trend
     const paidBookings = bookings.filter(
-      (booking) => booking.payment_status === "paid"
+      (booking) => booking.payment_status === "paid",
     );
 
     paidBookings.forEach((booking) => {
       try {
-        const bookingDate = parseISO(booking.created_at || booking.check_in_date);
+        const bookingDate = parseISO(
+          booking.created_at || booking.check_in_date,
+        );
         if (!isValid(bookingDate)) return;
 
         let periodKey;
@@ -519,28 +520,30 @@ export default function BookingsPage() {
           booking.booking_id
             ?.toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
-          booking.room_number?.toLowerCase().includes(searchQuery.toLowerCase())
+          booking.room_number
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()),
       );
     }
 
     // Status filter
     if (selectedStatus !== "all") {
       filtered = filtered.filter(
-        (booking) => booking.booking_status === selectedStatus
+        (booking) => booking.booking_status === selectedStatus,
       );
     }
 
     // Room type filter
     if (selectedRoomType !== "all") {
       filtered = filtered.filter(
-        (booking) => booking.room_category === selectedRoomType
+        (booking) => booking.room_category === selectedRoomType,
       );
     }
 
     // Payment status filter
     if (selectedPaymentStatus !== "all") {
       filtered = filtered.filter(
-        (booking) => booking.payment_status === selectedPaymentStatus
+        (booking) => booking.payment_status === selectedPaymentStatus,
       );
     }
 
@@ -875,7 +878,7 @@ export default function BookingsPage() {
               <button
                 onClick={() =>
                   setExpandedBooking(
-                    expandedBooking === booking.id ? null : booking.id
+                    expandedBooking === booking.id ? null : booking.id,
                   )
                 }
                 className="p-2 cursor-pointer hover:bg-gray-700/50 rounded-lg transition-colors"
@@ -1455,30 +1458,6 @@ export default function BookingsPage() {
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Check-in Date Range
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={dateRange.start}
-                      onChange={(e) =>
-                        setDateRange({ ...dateRange, start: e.target.value })
-                      }
-                      className="flex-1 px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-white"
-                    />
-                    <input
-                      type="date"
-                      value={dateRange.end}
-                      onChange={(e) =>
-                        setDateRange({ ...dateRange, end: e.target.value })
-                      }
-                      className="flex-1 px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-white"
-                    />
-                  </div>
                 </div>
               </div>
 

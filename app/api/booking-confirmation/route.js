@@ -23,14 +23,7 @@ export async function POST(request) {
       text: generateUserBookingEmailText(bookingData),
     });
 
-    // Send email to admin
-    // const adminEmail = await resend.emails.send({
-    //   from: process.env.RESEND_FROM_EMAIL || "Royal Moss Hotel <bookings@royalmoss.org>",
-    //   to: "horlayinkah2005@gmail.com",
-    //   subject: `📋 New Booking - ${bookingData.booking_id}`,
-    //   html: generateAdminBookingEmailHTML(bookingData),
-    //   text: generateAdminBookingEmailText(bookingData),
-    // });
+
 
     return NextResponse.json({
       success: true,
@@ -894,8 +887,8 @@ function generateAdminBookingEmailHTML(bookingData) {
                     <div style="font-size: 16px; color: #1a365d; margin-bottom: 20px; font-weight: 500;">
                         Quick Actions
                     </div>
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/bookings/${bookingData.booking_id}" class="action-button">
-                        View Booking Details
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/bookings/" class="action-button">
+                        View Booking
                     </a>
                     <a href="mailto:${bookingData.guest_email}?subject=Royal Moss Booking ${bookingData.booking_id}" class="action-button">
                         Contact Guest

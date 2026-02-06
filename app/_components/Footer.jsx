@@ -126,7 +126,7 @@ const Footer = () => {
       { label: "Book a Room", href: "/rooms" },
       { label: "Gym", href: "/services" },
       { label: "Restaurant", href: "/services" },
-      { label: "Multi-purpose Hall", href: "/multi-purpose-hall" },
+      { label: "Multi-purpose Hall", href: "/services" },
       { label: "Unisex Salon", href: "/services" },
       { label: "Swimming Pool", href: "/services" },
       { label: "Laundry & Dry Cleaning", href: "/services" },
@@ -310,7 +310,7 @@ const Footer = () => {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                           />
                         </svg>
-                        Sending...
+                        Subscribing...
                       </div>
                     ) : (
                       "Subscribe"

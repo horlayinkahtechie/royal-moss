@@ -148,7 +148,7 @@ const ContactSection = () => {
       // Auto-clear success message after 10 seconds
       setTimeout(() => {
         setSubmitStatus((prev) =>
-          prev.type === "success" ? { type: "", message: "" } : prev
+          prev.type === "success" ? { type: "", message: "" } : prev,
         );
       }, 10000);
     } catch (error) {
@@ -172,7 +172,7 @@ const ContactSection = () => {
       // Auto-clear error message after 8 seconds
       setTimeout(() => {
         setSubmitStatus((prev) =>
-          prev.type === "error" ? { type: "", message: "" } : prev
+          prev.type === "error" ? { type: "", message: "" } : prev,
         );
       }, 8000);
     } finally {
@@ -200,7 +200,7 @@ const ContactSection = () => {
     {
       icon: <Mail className="w-6 h-6" />,
       title: "Email Us",
-      details: ["reservations@royalmoss.com", "royalmossng@gmail.com"],
+      details: ["royalmossng@gmail.com", "royalmossng@gmail.com"],
       color: "from-emerald-500 to-emerald-600",
       bgColor: "bg-emerald-50",
       iconColor: "text-emerald-600",
@@ -594,28 +594,20 @@ const ContactSection = () => {
               </h4>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="tel:+234712345678"
+                  href="tel:+2348089553225"
                   className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                 >
                   <Phone className="w-4 h-4 mr-2" />
                   Call Now
                 </a>
                 <a
-                  href="mailto:reservations@royalmoss.com"
+                  href="mailto:royalmossng@gmail.com"
                   className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   Email Directly
                 </a>
-                <a
-                  href="https://wa.me/234712345678"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  WhatsApp
-                </a>
+
                 <a
                   href="/book"
                   className="inline-flex items-center px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors text-sm"
